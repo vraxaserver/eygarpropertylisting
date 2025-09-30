@@ -138,5 +138,6 @@ class PropertyListResponse(BaseModel):
     is_featured: bool
     location: LocationResponse
     cover_image: Optional[str] = None
+    images: List[str] = [] 
     
     model_config = ConfigDict(from_attributes=True)

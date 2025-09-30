@@ -5,7 +5,7 @@ from app.api.v1.endpoints import properties, reviews, amenities, my_properties
 api_router = APIRouter()
 
 # Property endpoints
-api_router.include_router(properties.router, tags=["properties"])
+api_router.include_router(properties.router, prefix="/properties", tags=["properties"])
 
 # Review endpoints
 api_router.include_router(reviews.router, tags=["reviews"])

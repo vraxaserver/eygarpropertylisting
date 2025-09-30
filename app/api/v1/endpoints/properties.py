@@ -13,7 +13,7 @@ from app.schemas.property import (
 )
 from app.services.property_service import PropertyService
 from app.models.property import PropertyType
-
+import pdb
 
 router = APIRouter()
 
@@ -78,12 +78,15 @@ async def list_properties(
         filters=filters
     )
     
-    # Convert to list response format with cover image
+    # Convert to list response format
     property_list = []
     for prop in properties:
         cover_image = next((img.image_url for img in prop.images if img.is_cover), None)
         if not cover_image and prop.images:
             cover_image = prop.images[0].image_url
+        
+        # Extract just the URLs
+        image_urls = [img.image_url for img in prop.images]
         
         property_list.append(PropertyListResponse(
             id=prop.id,
@@ -100,7 +103,8 @@ async def list_properties(
             total_reviews=prop.total_reviews,
             is_featured=prop.is_featured,
             location=prop.location,
-            cover_image=cover_image
+            cover_image=cover_image,
+            images=image_urls   # Add this line
         ))
     
     return PaginatedResponse.create(
@@ -109,7 +113,6 @@ async def list_properties(
         page=pagination.page,
         page_size=pagination.page_size
     )
-
 
 @router.get("/search", response_model=PaginatedResponse[PropertyListResponse])
 async def search_properties(
