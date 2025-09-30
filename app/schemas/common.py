@@ -43,9 +43,12 @@ class HealthResponse(BaseModel):
 
 class UserInfo(BaseModel):
     """User information from auth service."""
-    id: UUID
+    id: UUID  # Django typically uses UUID or int for user IDs
     email: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     is_active: bool = True
     is_verified: bool = False
+    
+    class Config:
+        from_attributes = True

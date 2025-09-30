@@ -29,6 +29,7 @@ async def create_property(
     Requires authentication. Minimum 3 images required.
     """
     service = PropertyService(db)
+    
     property_obj = await service.create_property(property_data, current_user.id)
     return property_obj
 

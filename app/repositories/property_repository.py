@@ -1,12 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, delete
 from sqlalchemy.orm import selectinload, joinedload
 from typing import List, Optional, Tuple
 from uuid import UUID
 from datetime import date
 from app.models.property import Property, Location
 from app.models.image import PropertyImage
-from app.models.amenity import Amenity, SafetyFeature
+from app.models.amenity import Amenity, SafetyFeature, property_amenities, property_safety_features
 from app.models.rule import PropertyRule, RuleType
 from app.schemas.property import PropertyCreate, PropertyUpdate
 
@@ -18,6 +18,7 @@ class PropertyRepository:
     async def create(self, property_data: PropertyCreate, user_id: UUID, slug: str) -> Property:
         """Create a new property with all related data."""
         # Create location
+        print(f"Inside repository: user_id:{user_id}")
         location = Location(**property_data.location.model_dump())
         self.db.add(location)
         await self.db.flush()
@@ -44,19 +45,25 @@ class PropertyRepository:
             )
             self.db.add(image)
         
-        # Add amenities
+        # Add amenities using junction table directly
         if property_data.amenity_ids:
-            amenities = await self.db.execute(
-                select(Amenity).where(Amenity.id.in_(property_data.amenity_ids))
-            )
-            property_obj.amenities = list(amenities.scalars().all())
+            from app.models.amenity import property_amenities
+            for amenity_id in property_data.amenity_ids:
+                stmt = property_amenities.insert().values(
+                    property_id=property_obj.id,
+                    amenity_id=amenity_id
+                )
+                await self.db.execute(stmt)
         
-        # Add safety features
+        # Add safety features using junction table directly
         if property_data.safety_feature_ids:
-            safety_features = await self.db.execute(
-                select(SafetyFeature).where(SafetyFeature.id.in_(property_data.safety_feature_ids))
-            )
-            property_obj.safety_features = list(safety_features.scalars().all())
+            from app.models.amenity import property_safety_features
+            for safety_id in property_data.safety_feature_ids:
+                stmt = property_safety_features.insert().values(
+                    property_id=property_obj.id,
+                    safety_feature_id=safety_id
+                )
+                await self.db.execute(stmt)
         
         # Add rules
         for rule_text in property_data.house_rules:
@@ -86,7 +93,7 @@ class PropertyRepository:
         await self.db.flush()
         await self.db.refresh(property_obj)
         return property_obj
-    
+
     async def get_by_id(self, property_id: UUID) -> Optional[Property]:
         """Get property by ID with all relations."""
         result = await self.db.execute(
@@ -209,7 +216,10 @@ class PropertyRepository:
         if not property_obj:
             return None
         
-        update_dict = update_data.model_dump(exclude_unset=True, exclude={'location', 'amenity_ids', 'safety_feature_ids'})
+        update_dict = update_data.model_dump(
+            exclude_unset=True, 
+            exclude={'location', 'amenity_ids', 'safety_feature_ids'}
+        )
         
         for field, value in update_dict.items():
             setattr(property_obj, field, value)
@@ -220,19 +230,43 @@ class PropertyRepository:
             for field, value in location_dict.items():
                 setattr(property_obj.location, field, value)
         
-        # Update amenities if provided
+        # Update amenities if provided - use direct junction table manipulation
         if update_data.amenity_ids is not None:
-            amenities = await self.db.execute(
-                select(Amenity).where(Amenity.id.in_(update_data.amenity_ids))
+            from app.models.amenity import property_amenities
+            from sqlalchemy import delete
+            
+            # Delete existing amenities
+            delete_stmt = delete(property_amenities).where(
+                property_amenities.c.property_id == property_id
             )
-            property_obj.amenities = list(amenities.scalars().all())
+            await self.db.execute(delete_stmt)
+            
+            # Add new amenities
+            for amenity_id in update_data.amenity_ids:
+                insert_stmt = property_amenities.insert().values(
+                    property_id=property_id,
+                    amenity_id=amenity_id
+                )
+                await self.db.execute(insert_stmt)
         
         # Update safety features if provided
         if update_data.safety_feature_ids is not None:
-            safety_features = await self.db.execute(
-                select(SafetyFeature).where(SafetyFeature.id.in_(update_data.safety_feature_ids))
+            from app.models.amenity import property_safety_features
+            from sqlalchemy import delete
+            
+            # Delete existing safety features
+            delete_stmt = delete(property_safety_features).where(
+                property_safety_features.c.property_id == property_id
             )
-            property_obj.safety_features = list(safety_features.scalars().all())
+            await self.db.execute(delete_stmt)
+            
+            # Add new safety features
+            for safety_id in update_data.safety_feature_ids:
+                insert_stmt = property_safety_features.insert().values(
+                    property_id=property_id,
+                    safety_feature_id=safety_id
+                )
+                await self.db.execute(insert_stmt)
         
         await self.db.flush()
         await self.db.refresh(property_obj)

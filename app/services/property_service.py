@@ -15,6 +15,7 @@ class PropertyService:
     async def create_property(self, property_data: PropertyCreate, user_id: UUID) -> Property:
         """Create a new property listing."""
         # Generate unique slug
+        print(f"Inside services: create_property, user_id: {user_id}")
         base_slug = slugify(property_data.title)
         slug = base_slug
         counter = 1

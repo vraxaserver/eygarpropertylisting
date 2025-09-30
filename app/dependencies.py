@@ -16,54 +16,59 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> UserInfo:
     """
-    Validate JWT token with auth service and return user info.
+    Validate JWT token with Django auth service and return user info.
     """
     token = credentials.credentials
     
+    # Verify token with Django auth service
     try:
-        # First try to decode and verify token locally
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Verify token with auth service
-    try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 f"{settings.AUTH_SERVICE_URL}/api/auth/me/",
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=5.0
+                headers={"Authorization": f"Bearer {token}"}
             )
+            
+            if response.status_code == 401:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired token",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
             
             if response.status_code != 200:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid authentication credentials",
+                    detail="Could not validate credentials",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
             
             user_data = response.json()
-            return UserInfo(**user_data)
             
-    except httpx.RequestError:
+            # Map Django user response to UserInfo
+            return UserInfo(
+                id=user_data.get("id"),
+                email=user_data.get("email"),
+                first_name=user_data.get("first_name"),
+                last_name=user_data.get("last_name"),
+                is_active=user_data.get("is_active", True),
+                is_verified=user_data.get("is_verified", False)
+            )
+            
+    except httpx.TimeoutException:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Auth service unavailable"
+            detail="Auth service timeout"
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Auth service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Authentication error: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
 
