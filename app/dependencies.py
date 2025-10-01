@@ -6,7 +6,7 @@ from typing import Optional
 import httpx
 from app.config import settings
 from app.database import get_db
-from app.schemas.common import UserInfo
+from app.schemas.common import UserInfo, HostInfo
 
 
 security = HTTPBearer()
@@ -24,7 +24,7 @@ async def get_current_user(
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
-                f"{settings.AUTH_SERVICE_URL}/api/auth/me/",
+                f"{settings.AUTH_SERVICE_URL}/api/auth/profile/",
                 headers={"Authorization": f"Bearer {token}"}
             )
             
@@ -43,15 +43,37 @@ async def get_current_user(
                 )
             
             user_data = response.json()
+
+            host_data = user_data.get("eygar_host")
+            host_info_obj = None
+
+            if host_data:
+                host_info_obj = HostInfo(
+                    id=host_data.get("id"),
+                    status=host_data.get("status"),
+                    completion_percentage=host_data.get("completion_percentage"),
+                    business_profile_completed=host_data.get("business_profile_completed"),
+                    identity_verification_completed=host_data.get("identity_verification_completed"),
+                    contact_details_completed=host_data.get("contact_details_completed"),
+                    review_submission_completed=host_data.get("review_submission_completed"),
+                    next_step=host_data.get("next_step"),
+                    review_notes=host_data.get("review_notes"),
+                    submitted_at=host_data.get("submitted_at"),
+                    reviewed_at=host_data.get("reviewed_at")
+                )
             
             # Map Django user response to UserInfo
             return UserInfo(
                 id=user_data.get("id"),
                 email=user_data.get("email"),
+                avatar_url=user_data.get("avatar_url"),
                 first_name=user_data.get("first_name"),
                 last_name=user_data.get("last_name"),
                 is_active=user_data.get("is_active", True),
-                is_verified=user_data.get("is_verified", False)
+                is_verified=user_data.get("is_verified", False),
+                is_staff=user_data.get("is_staff", False),
+                is_superuser=user_data.get("is_superuser", False),
+                host_info=host_info_obj
             )
             
     except httpx.TimeoutException:
