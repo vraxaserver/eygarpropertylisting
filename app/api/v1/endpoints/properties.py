@@ -12,8 +12,8 @@ from app.schemas.property import (
     PropertyListResponse
 )
 from app.services.property_service import PropertyService
-from app.models.property import PropertyType, Property
-import pdb
+from app.models.property import PropertyType, PlaceType, Property
+
 
 router = APIRouter()
 
@@ -31,6 +31,7 @@ def property_to_list_response(prop: Property) -> PropertyListResponse:
         title=prop.title,
         slug=prop.slug,
         property_type=prop.property_type,
+        place_type=prop.place_type,
         price_per_night=prop.price_per_night,
         currency=prop.currency,
         bedrooms=prop.bedrooms,
@@ -83,6 +84,7 @@ async def create_property(
 async def list_properties(
     pagination: PaginationParams = Depends(),
     property_type: Optional[PropertyType] = None,
+    place_type: Optional[PlaceType] = None, 
     city: Optional[str] = None,
     country: Optional[str] = None,
     min_price: Optional[int] = Query(None, description="Minimum price in cents"),
@@ -99,6 +101,7 @@ async def list_properties(
     filters = {
         'is_active': True,
         'property_type': property_type,
+        'place_type': place_type,
         'city': city,
         'country': country,
         'min_price': min_price,
@@ -141,6 +144,7 @@ async def search_properties(
     infants: Optional[int] = Query(None, ge=0),
     pets: Optional[bool] = None,
     property_type: Optional[PropertyType] = None,
+    place_type: Optional[PlaceType] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
     bedrooms: Optional[int] = None,
@@ -157,6 +161,7 @@ async def search_properties(
     filters = {
         'is_active': True,
         'property_type': property_type,
+        'place_type': place_type,
         'min_price': min_price,
         'max_price': max_price,
         'bedrooms': bedrooms,

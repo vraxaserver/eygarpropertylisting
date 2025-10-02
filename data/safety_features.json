@@ -1,0 +1,27 @@
+[
+    {
+        "name": "Carbon monoxide alarm",
+        "description": "Fitted near combustion appliances.",
+        "icon": "sensor-on"
+    },
+    {
+        "name": "Fire extinguisher",
+        "description": "Easily accessible in the kitchen.",
+        "icon": "fire-extinguisher"
+    },
+    {
+        "name": "First aid kit",
+        "description": "Available in the main bathroom cabinet.",
+        "icon": "medical-bag"
+    },
+    {
+        "name": "Lock on bedroom door",
+        "description": "Private room can be locked.",
+        "icon": "lock"
+    },
+    {
+        "name": "Smoke alarm",
+        "description": "Fitted in all sleeping areas.",
+        "icon": "sensor-smoke"
+    }
+]

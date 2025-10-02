@@ -164,6 +164,9 @@ class PropertyRepository:
 
             if filters.get('property_type'):
                 conditions.append(Property.property_type == filters['property_type'])
+            
+            if filters.get('place_type'):
+                conditions.append(Property.place_type == filters['place_type'])
 
             if filters.get('min_price') is not None:
                 conditions.append(Property.price_per_night >= filters['min_price'])

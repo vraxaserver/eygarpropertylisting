@@ -8,10 +8,16 @@ import enum
 from app.database import Base
 
 
-class PropertyType(str, enum.Enum):
+class PlaceType(str, enum.Enum):
     ENTIRE_PLACE = "entire_place"
     PRIVATE_ROOM = "private_room"
     SHARED_ROOM = "shared_room"
+
+class PropertyType(str, enum.Enum):
+    HOUSE = "house"
+    APARTMENT  = "apartment"
+    GUEST_HOUSE = "guest_house"
+    HOTEL = "hotel"
 
 
 class VerificationStatus(str, enum.Enum):
@@ -30,7 +36,8 @@ class Property(Base):
     title = Column(String(200), nullable=False, index=True)
     slug = Column(String(250), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=False)
-    property_type = Column(Enum(PropertyType), nullable=False, index=True)
+    property_type = Column(Enum(PropertyType), nullable=False, index=True)  # house, apartment, etc.
+    place_type = Column(Enum(PlaceType), nullable=False, index=True)  # NEW: entire_place, private_room, etc.
     
     # Capacity
     bedrooms = Column(Integer, nullable=False, default=1)
@@ -70,9 +77,9 @@ class Property(Base):
     
     # Host - DENORMALIZED DATA
     host_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    host_name = Column(String(200), nullable=False)  # NEW
-    host_email = Column(String(255), nullable=False)  # NEW
-    host_avatar = Column(String(1000), nullable=True)  # NEW
+    host_name = Column(String(200), nullable=False)
+    host_email = Column(String(255), nullable=False)
+    host_avatar = Column(String(1000), nullable=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -98,7 +105,7 @@ class Property(Base):
         CheckConstraint('average_rating >= 0 AND average_rating <= 5', name='valid_rating'),
         Index('idx_property_location_active', 'location_id', 'is_active'),
         Index('idx_property_host_active', 'host_id', 'is_active'),
-        Index('idx_property_search', 'property_type', 'is_active', 'verification_status'),
+        Index('idx_property_search', 'property_type', 'place_type', 'is_active', 'verification_status'),
     )
     
     def __repr__(self):

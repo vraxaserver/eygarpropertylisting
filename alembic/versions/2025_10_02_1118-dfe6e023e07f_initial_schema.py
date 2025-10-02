@@ -1,8 +1,8 @@
-"""Initial migration with all models
+"""initial schema
 
-Revision ID: 0e5cb956203f
+Revision ID: dfe6e023e07f
 Revises: 
-Create Date: 2025-09-30 11:37:50.138271
+Create Date: 2025-10-02 11:18:23.675673
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '0e5cb956203f'
+revision = 'dfe6e023e07f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -57,7 +57,8 @@ def upgrade() -> None:
     sa.Column('title', sa.String(length=200), nullable=False),
     sa.Column('slug', sa.String(length=250), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('property_type', sa.Enum('ENTIRE_PLACE', 'PRIVATE_ROOM', 'SHARED_ROOM', name='propertytype'), nullable=False),
+    sa.Column('property_type', sa.Enum('HOUSE', 'APARTMENT', 'GUEST_HOUSE', 'HOTEL', name='propertytype'), nullable=False),
+    sa.Column('place_type', sa.Enum('ENTIRE_PLACE', 'PRIVATE_ROOM', 'SHARED_ROOM', name='placetype'), nullable=False),
     sa.Column('bedrooms', sa.Integer(), nullable=False),
     sa.Column('beds', sa.Integer(), nullable=False),
     sa.Column('bathrooms', sa.Float(), nullable=False),
@@ -79,7 +80,10 @@ def upgrade() -> None:
     sa.Column('instant_book', sa.Boolean(), nullable=True),
     sa.Column('average_rating', sa.Float(), nullable=True),
     sa.Column('total_reviews', sa.Integer(), nullable=True),
-    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('host_id', sa.UUID(), nullable=False),
+    sa.Column('host_name', sa.String(length=200), nullable=False),
+    sa.Column('host_email', sa.String(length=255), nullable=False),
+    sa.Column('host_avatar', sa.String(length=1000), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('published_at', sa.DateTime(timezone=True), nullable=True),
@@ -92,18 +96,19 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('idx_property_host_active', 'properties', ['host_id', 'is_active'], unique=False)
     op.create_index('idx_property_location_active', 'properties', ['location_id', 'is_active'], unique=False)
-    op.create_index('idx_property_search', 'properties', ['property_type', 'is_active', 'verification_status'], unique=False)
-    op.create_index('idx_property_user_active', 'properties', ['user_id', 'is_active'], unique=False)
+    op.create_index('idx_property_search', 'properties', ['property_type', 'place_type', 'is_active', 'verification_status'], unique=False)
     op.create_index(op.f('ix_properties_average_rating'), 'properties', ['average_rating'], unique=False)
+    op.create_index(op.f('ix_properties_host_id'), 'properties', ['host_id'], unique=False)
     op.create_index(op.f('ix_properties_id'), 'properties', ['id'], unique=False)
     op.create_index(op.f('ix_properties_instant_book'), 'properties', ['instant_book'], unique=False)
     op.create_index(op.f('ix_properties_is_active'), 'properties', ['is_active'], unique=False)
     op.create_index(op.f('ix_properties_is_featured'), 'properties', ['is_featured'], unique=False)
+    op.create_index(op.f('ix_properties_place_type'), 'properties', ['place_type'], unique=False)
     op.create_index(op.f('ix_properties_property_type'), 'properties', ['property_type'], unique=False)
     op.create_index(op.f('ix_properties_slug'), 'properties', ['slug'], unique=True)
     op.create_index(op.f('ix_properties_title'), 'properties', ['title'], unique=False)
-    op.create_index(op.f('ix_properties_user_id'), 'properties', ['user_id'], unique=False)
     op.create_index(op.f('ix_properties_verification_status'), 'properties', ['verification_status'], unique=False)
     op.create_table('availabilities',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -226,18 +231,19 @@ def downgrade() -> None:
     op.drop_index('idx_availability_property_dates', table_name='availabilities')
     op.drop_table('availabilities')
     op.drop_index(op.f('ix_properties_verification_status'), table_name='properties')
-    op.drop_index(op.f('ix_properties_user_id'), table_name='properties')
     op.drop_index(op.f('ix_properties_title'), table_name='properties')
     op.drop_index(op.f('ix_properties_slug'), table_name='properties')
     op.drop_index(op.f('ix_properties_property_type'), table_name='properties')
+    op.drop_index(op.f('ix_properties_place_type'), table_name='properties')
     op.drop_index(op.f('ix_properties_is_featured'), table_name='properties')
     op.drop_index(op.f('ix_properties_is_active'), table_name='properties')
     op.drop_index(op.f('ix_properties_instant_book'), table_name='properties')
     op.drop_index(op.f('ix_properties_id'), table_name='properties')
+    op.drop_index(op.f('ix_properties_host_id'), table_name='properties')
     op.drop_index(op.f('ix_properties_average_rating'), table_name='properties')
-    op.drop_index('idx_property_user_active', table_name='properties')
     op.drop_index('idx_property_search', table_name='properties')
     op.drop_index('idx_property_location_active', table_name='properties')
+    op.drop_index('idx_property_host_active', table_name='properties')
     op.drop_table('properties')
     op.drop_index(op.f('ix_safety_features_name'), table_name='safety_features')
     op.drop_table('safety_features')

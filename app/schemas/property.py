@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
-from app.models.property import PropertyType, VerificationStatus
+from app.models.property import PropertyType, PlaceType, VerificationStatus
 
 
 class LocationBase(BaseModel):
@@ -50,6 +50,7 @@ class PropertyBase(BaseModel):
     title: str = Field(..., min_length=10, max_length=200)
     description: str = Field(..., min_length=50)
     property_type: PropertyType
+    place_type: PlaceType
     bedrooms: int = Field(default=1, ge=0)
     beds: int = Field(default=1, ge=0)
     bathrooms: float = Field(default=1.0, ge=0)
@@ -93,6 +94,7 @@ class PropertyUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=10, max_length=200)
     description: Optional[str] = Field(None, min_length=50)
     property_type: Optional[PropertyType] = None
+    place_type: Optional[PlaceType] = None
     bedrooms: Optional[int] = Field(None, ge=0)
     beds: Optional[int] = Field(None, ge=0)
     bathrooms: Optional[float] = Field(None, ge=0)
@@ -150,6 +152,7 @@ class PropertyListResponse(BaseModel):
     title: str
     slug: str
     property_type: PropertyType
+    place_type: PlaceType
     price_per_night: int
     currency: str
     bedrooms: int

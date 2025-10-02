@@ -1,0 +1,77 @@
+[
+    {
+        "name": "Air conditioning",
+        "category": "basic",
+        "icon": "snowflake"
+    },
+    {
+        "name": "Dedicated workspace",
+        "category": "basic",
+        "icon": "desk"
+    },
+    {
+        "name": "Dryer",
+        "category": "basic",
+        "icon": "dryer"
+    },
+    {
+        "name": "Heating",
+        "category": "basic",
+        "icon": "thermometer"
+    },
+    {
+        "name": "Washer",
+        "category": "basic",
+        "icon": "washing-machine"
+    },
+    {
+        "name": "Wi-Fi",
+        "category": "basic",
+        "icon": "wifi"
+    },
+    {
+        "name": "Step-free access",
+        "category": "accessibility",
+        "icon": "wheelchair"
+    },
+    {
+        "name": "Wide doorways",
+        "category": "accessibility",
+        "icon": "door-open"
+    },
+    {
+        "name": "Coffee maker",
+        "category": "kitchen",
+        "icon": "coffee"
+    },
+    {
+        "name": "Dishwasher",
+        "category": "kitchen",
+        "icon": "dishwasher"
+    },
+    {
+        "name": "Kitchen",
+        "category": "kitchen",
+        "icon": "kitchen"
+    },
+    {
+        "name": "Microwave",
+        "category": "kitchen",
+        "icon": "microwave"
+    },
+    {
+        "name": "Refrigerator",
+        "category": "kitchen",
+        "icon": "fridge"
+    },
+    {
+        "name": "Pool table",
+        "category": "entertainment",
+        "icon": "pool-8-ball"
+    },
+    {
+        "name": "TV",
+        "category": "entertainment",
+        "icon": "tv"
+    }
+]
