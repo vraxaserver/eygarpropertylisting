@@ -152,7 +152,8 @@ class PropertyUploader:
             
             if response.status_code == 201:
                 result = response.json()
-                print(f"✓ Created: {result['title']} (ID: {result['id']})")
+                host_name = result.get('host', {}).get('name', 'Unknown')
+                print(f"✓ Created: {result['title']} by {host_name} (ID: {result['id']})")
                 return result
             else:
                 print(f"✗ Failed to create '{property_data.get('title')}'")

@@ -12,10 +12,42 @@ from app.schemas.property import (
     PropertyListResponse
 )
 from app.services.property_service import PropertyService
-from app.models.property import PropertyType
+from app.models.property import PropertyType, Property
 import pdb
 
 router = APIRouter()
+
+# Add this helper function at the top of properties.py after imports
+def property_to_list_response(prop: Property) -> PropertyListResponse:
+    """Convert Property model to PropertyListResponse."""
+    cover_image = next((img.image_url for img in prop.images if img.is_cover), None)
+    if not cover_image and prop.images:
+        cover_image = prop.images[0].image_url
+    
+    image_urls = [img.image_url for img in prop.images]
+    
+    return PropertyListResponse(
+        id=prop.id,
+        title=prop.title,
+        slug=prop.slug,
+        property_type=prop.property_type,
+        price_per_night=prop.price_per_night,
+        currency=prop.currency,
+        bedrooms=prop.bedrooms,
+        beds=prop.beds,
+        bathrooms=prop.bathrooms,
+        max_guests=prop.max_guests,
+        average_rating=prop.average_rating,
+        total_reviews=prop.total_reviews,
+        is_featured=prop.is_featured,
+        host_id=prop.host_id,
+        host_name=prop.host_name,
+        host_email=prop.host_email,
+        host_avatar=prop.host_avatar,
+        location=prop.location,
+        cover_image=cover_image,
+        images=image_urls
+    )
 
 
 @router.post("/", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
@@ -24,13 +56,26 @@ async def create_property(
     current_user: UserInfo = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Create a new property listing.
-    Requires authentication. Minimum 3 images required.
-    """
-    service = PropertyService(db)
+    """Create a new property listing."""
+    if not current_user.host_info or not current_user.host_info.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only hosts can create properties. Please complete host registration."
+        )
     
-    property_obj = await service.create_property(property_data, current_user.id)
+    # Prepare host information
+    host_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or "Host"
+    host_email = current_user.email
+    host_avatar = current_user.avatar_url
+    
+    service = PropertyService(db)
+    property_obj = await service.create_property(
+        property_data, 
+        current_user.host_info.id,
+        host_name,
+        host_email,
+        host_avatar
+    )
     return property_obj
 
 
@@ -50,10 +95,7 @@ async def list_properties(
     sort_by: Optional[str] = Query("newest", regex="^(price_asc|price_desc|rating|newest)$"),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    List all properties with filtering and pagination.
-    Public endpoint - no authentication required.
-    """
+    """List all properties with filtering and pagination."""
     filters = {
         'is_active': True,
         'property_type': property_type,
@@ -69,7 +111,6 @@ async def list_properties(
         'sort_by': sort_by
     }
     
-    # Remove None values
     filters = {k: v for k, v in filters.items() if v is not None}
     
     service = PropertyService(db)
@@ -78,35 +119,8 @@ async def list_properties(
         limit=pagination.limit,
         filters=filters
     )
-    
-    # Convert to list response format
-    property_list = []
-    for prop in properties:
-        cover_image = next((img.image_url for img in prop.images if img.is_cover), None)
-        if not cover_image and prop.images:
-            cover_image = prop.images[0].image_url
-        
-        # Extract just the URLs
-        image_urls = [img.image_url for img in prop.images]
-        
-        property_list.append(PropertyListResponse(
-            id=prop.id,
-            title=prop.title,
-            slug=prop.slug,
-            property_type=prop.property_type,
-            price_per_night=prop.price_per_night,
-            currency=prop.currency,
-            bedrooms=prop.bedrooms,
-            beds=prop.beds,
-            bathrooms=prop.bathrooms,
-            max_guests=prop.max_guests,
-            average_rating=prop.average_rating,
-            total_reviews=prop.total_reviews,
-            is_featured=prop.is_featured,
-            location=prop.location,
-            cover_image=cover_image,
-            images=image_urls   # Add this line
-        ))
+
+    property_list = [property_to_list_response(prop) for prop in properties]
     
     return PaginatedResponse.create(
         items=property_list,
@@ -114,6 +128,7 @@ async def list_properties(
         page=pagination.page,
         page_size=pagination.page_size
     )
+
 
 @router.get("/search", response_model=PaginatedResponse[PropertyListResponse])
 async def search_properties(
@@ -172,30 +187,8 @@ async def search_properties(
     )
     
     # Convert to list response
-    property_list = []
-    for prop in properties:
-        cover_image = next((img.image_url for img in prop.images if img.is_cover), None)
-        if not cover_image and prop.images:
-            cover_image = prop.images[0].image_url
+    property_list = [property_to_list_response(prop) for prop in properties]
         
-        property_list.append(PropertyListResponse(
-            id=prop.id,
-            title=prop.title,
-            slug=prop.slug,
-            property_type=prop.property_type,
-            price_per_night=prop.price_per_night,
-            currency=prop.currency,
-            bedrooms=prop.bedrooms,
-            beds=prop.beds,
-            bathrooms=prop.bathrooms,
-            max_guests=prop.max_guests,
-            average_rating=prop.average_rating,
-            total_reviews=prop.total_reviews,
-            is_featured=prop.is_featured,
-            location=prop.location,
-            cover_image=cover_image
-        ))
-    
     return PaginatedResponse.create(
         items=property_list,
         total=total,
@@ -212,32 +205,7 @@ async def get_featured_properties(
     """Get featured properties."""
     service = PropertyService(db)
     properties = await service.get_featured_properties(limit)
-    
-    property_list = []
-    for prop in properties:
-        cover_image = next((img.image_url for img in prop.images if img.is_cover), None)
-        if not cover_image and prop.images:
-            cover_image = prop.images[0].image_url
-        
-        property_list.append(PropertyListResponse(
-            id=prop.id,
-            title=prop.title,
-            slug=prop.slug,
-            property_type=prop.property_type,
-            price_per_night=prop.price_per_night,
-            currency=prop.currency,
-            bedrooms=prop.bedrooms,
-            beds=prop.beds,
-            bathrooms=prop.bathrooms,
-            max_guests=prop.max_guests,
-            average_rating=prop.average_rating,
-            total_reviews=prop.total_reviews,
-            is_featured=prop.is_featured,
-            location=prop.location,
-            cover_image=cover_image
-        ))
-    
-    return property_list
+    return [property_to_list_response(prop) for prop in properties]
 
 
 @router.get("/nearby", response_model=List[PropertyListResponse])
@@ -251,32 +219,7 @@ async def get_nearby_properties(
     """Search properties near coordinates."""
     service = PropertyService(db)
     properties = await service.search_nearby(lat, lng, radius, limit)
-    
-    property_list = []
-    for prop in properties:
-        cover_image = next((img.image_url for img in prop.images if img.is_cover), None)
-        if not cover_image and prop.images:
-            cover_image = prop.images[0].image_url
-        
-        property_list.append(PropertyListResponse(
-            id=prop.id,
-            title=prop.title,
-            slug=prop.slug,
-            property_type=prop.property_type,
-            price_per_night=prop.price_per_night,
-            currency=prop.currency,
-            bedrooms=prop.bedrooms,
-            beds=prop.beds,
-            bathrooms=prop.bathrooms,
-            max_guests=prop.max_guests,
-            average_rating=prop.average_rating,
-            total_reviews=prop.total_reviews,
-            is_featured=prop.is_featured,
-            location=prop.location,
-            cover_image=cover_image
-        ))
-    
-    return property_list
+    return [property_to_list_response(prop) for prop in properties]
 
 
 @router.get("/{property_id}", response_model=PropertyResponse)
@@ -285,10 +228,7 @@ async def get_property(
     current_user: Optional[UserInfo] = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Get property details by ID.
-    Public endpoint with optional authentication.
-    """
+    """Get property details by ID."""
     service = PropertyService(db)
     property_obj = await service.get_property(property_id)
     
@@ -300,7 +240,7 @@ async def get_property(
     
     # Only show inactive properties to owner
     if not property_obj.is_active:
-        if not current_user or property_obj.user_id != current_user.id:
+        if not current_user or property_obj.host_id != (current_user.host_info.id if current_user.host_info else None):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Property not found"
@@ -320,10 +260,17 @@ async def update_property(
     Update property (owner only).
     Requires authentication.
     """
+    """Update property (owner only)."""
+    if not current_user.host_info or not current_user.host_info.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only hosts can update properties"
+        )
+    
     service = PropertyService(db)
     
     try:
-        property_obj = await service.update_property(property_id, update_data, current_user.id)
+        property_obj = await service.update_property(property_id, update_data, current_user.host_info.id)
     except PermissionError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -363,10 +310,17 @@ async def delete_property(
     Delete property (owner only).
     Requires authentication.
     """
+    """Delete property (owner only)."""
+    if not current_user.host_info or not current_user.host_info.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only hosts can delete properties"
+        )
+    
     service = PropertyService(db)
     
     try:
-        deleted = await service.delete_property(property_id, current_user.id)
+        deleted = await service.delete_property(property_id, current_user.host_info.id)
     except PermissionError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -382,46 +336,23 @@ async def delete_property(
     return MessageResponse(message="Property deleted successfully")
 
 
-@router.get("/host/{user_id}", response_model=PaginatedResponse[PropertyListResponse])
+@router.get("/host/{host_id}", response_model=PaginatedResponse[PropertyListResponse])
 async def get_host_properties(
-    user_id: UUID,
+    host_id: UUID,
     pagination: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all properties listed by a specific host."""
     service = PropertyService(db)
-    properties, total = await service.get_user_properties(
-        user_id,
+    properties, total = await service.get_host_properties(
+        host_id,
         skip=pagination.skip,
         limit=pagination.limit
     )
-    
-    property_list = []
-    for prop in properties:
-        if not prop.is_active:
-            continue
-        
-        cover_image = next((img.image_url for img in prop.images if img.is_cover), None)
-        if not cover_image and prop.images:
-            cover_image = prop.images[0].image_url
-        
-        property_list.append(PropertyListResponse(
-            id=prop.id,
-            title=prop.title,
-            slug=prop.slug,
-            property_type=prop.property_type,
-            price_per_night=prop.price_per_night,
-            currency=prop.currency,
-            bedrooms=prop.bedrooms,
-            beds=prop.beds,
-            bathrooms=prop.bathrooms,
-            max_guests=prop.max_guests,
-            average_rating=prop.average_rating,
-            total_reviews=prop.total_reviews,
-            is_featured=prop.is_featured,
-            location=prop.location,
-            cover_image=cover_image
-        ))
+
+    # Filter active only for public view
+    active_properties = [prop for prop in properties if prop.is_active]
+    property_list = [property_to_list_response(prop) for prop in active_properties]
     
     return PaginatedResponse.create(
         items=property_list,

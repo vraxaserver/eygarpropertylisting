@@ -39,13 +39,15 @@ docs/
 .env.local
 .env.*.local
 .venv
-
+.vscode
 # Logs
 *.log
 
 # Database
 *.db
 *.sqlite
+**/*.pyc
+**/__pycache__
 
 # Alembic
 alembic/versions/*.pyc

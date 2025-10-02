@@ -6,16 +6,24 @@ from datetime import datetime
 from app.repositories.property_repository import PropertyRepository
 from app.schemas.property import PropertyCreate, PropertyUpdate, PropertyResponse, PropertyListResponse
 from app.models.property import Property
+from app.services.host_service import HostService
 
 
 class PropertyService:
     def __init__(self, db: AsyncSession):
         self.repository = PropertyRepository(db)
+        self.host_service = HostService()
     
-    async def create_property(self, property_data: PropertyCreate, user_id: UUID) -> Property:
-        """Create a new property listing."""
+    async def create_property(
+        self, 
+        property_data: PropertyCreate, 
+        host_id: UUID,
+        host_name: str,
+        host_email: str,
+        host_avatar: Optional[str] = None
+    ) -> Property:
+        """Create a new property listing with host information."""
         # Generate unique slug
-        print(f"Inside services: create_property, user_id: {user_id}")
         base_slug = slugify(property_data.title)
         slug = base_slug
         counter = 1
@@ -25,7 +33,14 @@ class PropertyService:
             slug = f"{base_slug}-{counter}"
             counter += 1
         
-        property_obj = await self.repository.create(property_data, user_id, slug)
+        property_obj = await self.repository.create(
+            property_data, 
+            host_id, 
+            host_name, 
+            host_email, 
+            host_avatar, 
+            slug
+        )
         
         # Set published_at if property is active
         if property_obj.is_active:
@@ -50,11 +65,12 @@ class PropertyService:
         """List properties with filters."""
         return await self.repository.list_properties(skip, limit, filters)
     
+    
     async def update_property(
         self,
         property_id: UUID,
         update_data: PropertyUpdate,
-        user_id: UUID
+        host_id: UUID
     ) -> Optional[Property]:
         """Update property (owner only)."""
         property_obj = await self.repository.get_by_id(property_id)
@@ -63,7 +79,7 @@ class PropertyService:
             return None
         
         # Check ownership
-        if property_obj.user_id != user_id:
+        if property_obj.host_id != host_id:
             raise PermissionError("You don't have permission to update this property")
         
         updated_property = await self.repository.update(property_id, update_data)
@@ -84,7 +100,7 @@ class PropertyService:
         
         return updated_property
     
-    async def delete_property(self, property_id: UUID, user_id: UUID) -> bool:
+    async def delete_property(self, property_id: UUID, host_id: UUID) -> bool:
         """Delete property (owner only)."""
         property_obj = await self.repository.get_by_id(property_id)
         
@@ -92,7 +108,7 @@ class PropertyService:
             return False
         
         # Check ownership
-        if property_obj.user_id != user_id:
+        if property_obj.host_id != host_id:
             raise PermissionError("You don't have permission to delete this property")
         
         return await self.repository.delete(property_id)
@@ -116,10 +132,11 @@ class PropertyService:
         )
         return properties
     
-    async def get_user_properties(self, user_id: UUID, skip: int, limit: int) -> Tuple[List[Property], int]:
+    async def get_host_properties(self, host_id: UUID, skip: int, limit: int) -> Tuple[List[Property], int]:
         """Get all properties owned by user."""
-        return await self.repository.list_properties(
+        return await self.repository.get_properties_by_host(
+            host_id=host_id,
             skip=skip,
-            limit=limit,
-            filters={'user_id': user_id}
+            limit=limit
         )
+    

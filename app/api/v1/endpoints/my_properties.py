@@ -5,7 +5,7 @@ from app.dependencies import get_current_active_user, PaginationParams
 from app.schemas.common import UserInfo, PaginatedResponse
 from app.schemas.property import PropertyListResponse
 from app.services.property_service import PropertyService
-
+from app.api.v1.endpoints.properties import property_to_list_response
 
 router = APIRouter()
 
@@ -16,40 +16,23 @@ async def get_my_properties(
     current_user: UserInfo = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Get all properties owned by the authenticated user.
-    Requires authentication.
-    """
+    """Get all properties owned by the authenticated host."""
+    if not current_user.host_info or not current_user.host_info.id:
+        return PaginatedResponse.create(
+            items=[],
+            total=0,
+            page=pagination.page,
+            page_size=pagination.page_size
+        )
+    
     service = PropertyService(db)
-    properties, total = await service.get_user_properties(
-        current_user.id,
+    properties, total = await service.get_host_properties(
+        current_user.host_info.id,
         skip=pagination.skip,
         limit=pagination.limit
     )
     
-    property_list = []
-    for prop in properties:
-        cover_image = next((img.image_url for img in prop.images if img.is_cover), None)
-        if not cover_image and prop.images:
-            cover_image = prop.images[0].image_url
-        
-        property_list.append(PropertyListResponse(
-            id=prop.id,
-            title=prop.title,
-            slug=prop.slug,
-            property_type=prop.property_type,
-            price_per_night=prop.price_per_night,
-            currency=prop.currency,
-            bedrooms=prop.bedrooms,
-            beds=prop.beds,
-            bathrooms=prop.bathrooms,
-            max_guests=prop.max_guests,
-            average_rating=prop.average_rating,
-            total_reviews=prop.total_reviews,
-            is_featured=prop.is_featured,
-            location=prop.location,
-            cover_image=cover_image
-        ))
+    property_list = [property_to_list_response(prop) for prop in properties]
     
     return PaginatedResponse.create(
         items=property_list,

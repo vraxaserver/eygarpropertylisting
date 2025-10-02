@@ -36,6 +36,16 @@ class PropertyImageResponse(PropertyImageBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class HostInfoResponse(BaseModel):
+    """Host information included in property responses."""
+    id: UUID
+    name: str
+    email: str
+    avatar_url: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PropertyBase(BaseModel):
     title: str = Field(..., min_length=10, max_length=200)
     description: str = Field(..., min_length=50)
@@ -107,7 +117,10 @@ class PropertyUpdate(BaseModel):
 class PropertyResponse(PropertyBase):
     id: UUID
     slug: str
-    user_id: UUID
+    host_id: UUID
+    host_name: str  # Direct field
+    host_email: str  # Direct field
+    host_avatar: Optional[str]  # Direct field
     location: LocationResponse
     is_active: bool
     is_featured: bool
@@ -118,6 +131,16 @@ class PropertyResponse(PropertyBase):
     created_at: datetime
     updated_at: datetime
     published_at: Optional[datetime]
+    
+    # Computed property for backward compatibility
+    @property
+    def host(self) -> HostInfoResponse:
+        return HostInfoResponse(
+            id=self.host_id,
+            name=self.host_name,
+            email=self.host_email,
+            avatar_url=self.host_avatar
+        )
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -136,8 +159,22 @@ class PropertyListResponse(BaseModel):
     average_rating: float
     total_reviews: int
     is_featured: bool
+    host_id: UUID
+    host_name: str  # Direct field
+    host_email: str  # Direct field
+    host_avatar: Optional[str]  # Direct field
     location: LocationResponse
     cover_image: Optional[str] = None
-    images: List[str] = [] 
+    images: List[str] = []
+    
+    # Computed property for backward compatibility
+    @property
+    def host(self) -> HostInfoResponse:
+        return HostInfoResponse(
+            id=self.host_id,
+            name=self.host_name,
+            email=self.host_email,
+            avatar_url=self.host_avatar
+        )
     
     model_config = ConfigDict(from_attributes=True)

@@ -15,10 +15,15 @@ class PropertyRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
     
-    async def create(self, property_data: PropertyCreate, user_id: UUID, slug: str) -> Property:
+    async def create(self, 
+                     property_data: PropertyCreate, 
+                     host_id: UUID, 
+                     host_name: str, 
+                     host_email: str, 
+                     host_avatar: Optional[str], 
+                     slug: str) -> Property:
         """Create a new property with all related data."""
         # Create location
-        print(f"Inside repository: user_id:{user_id}")
         location = Location(**property_data.location.model_dump())
         self.db.add(location)
         await self.db.flush()
@@ -30,7 +35,10 @@ class PropertyRepository:
         )
         property_obj = Property(
             **property_dict,
-            user_id=user_id,
+            host_id=host_id,
+            host_name=host_name,  # NEW
+            host_email=host_email,  # NEW
+            host_avatar=host_avatar,  # NEW
             location_id=location.id,
             slug=slug
         )
@@ -93,7 +101,7 @@ class PropertyRepository:
         await self.db.flush()
         await self.db.refresh(property_obj)
         return property_obj
-
+    
     async def get_by_id(self, property_id: UUID) -> Optional[Property]:
         """Get property by ID with all relations."""
         result = await self.db.execute(
@@ -135,64 +143,83 @@ class PropertyRepository:
             joinedload(Property.location),
             selectinload(Property.images)
         )
-        
+
+        # Track relationship joins required for both query and count_query
+        joins = []
+
         # Apply filters
         conditions = []
-        
+
         if filters:
+            # Check for host_id in filters
+            if filters.get('host_id'):
+                conditions.append(Property.host_id == filters['host_id'])
+            
+            # Booleans should be checked explicitly for None
             if filters.get('is_active') is not None:
                 conditions.append(Property.is_active == filters['is_active'])
-            
-            if filters.get('is_featured'):
-                conditions.append(Property.is_featured == True)
-            
+
+            if filters.get('is_featured') is not None:
+                conditions.append(Property.is_featured == filters['is_featured'])
+
             if filters.get('property_type'):
                 conditions.append(Property.property_type == filters['property_type'])
-            
-            if filters.get('min_price'):
+
+            if filters.get('min_price') is not None:
                 conditions.append(Property.price_per_night >= filters['min_price'])
-            
-            if filters.get('max_price'):
+
+            if filters.get('max_price') is not None:
                 conditions.append(Property.price_per_night <= filters['max_price'])
-            
-            if filters.get('bedrooms'):
+
+            if filters.get('bedrooms') is not None:
                 conditions.append(Property.bedrooms >= filters['bedrooms'])
-            
-            if filters.get('beds'):
+
+            if filters.get('beds') is not None:
                 conditions.append(Property.beds >= filters['beds'])
-            
-            if filters.get('bathrooms'):
+
+            if filters.get('bathrooms') is not None:
                 conditions.append(Property.bathrooms >= filters['bathrooms'])
-            
-            if filters.get('max_guests'):
+
+            if filters.get('max_guests') is not None:
                 conditions.append(Property.max_guests >= filters['max_guests'])
-            
-            if filters.get('instant_book'):
-                conditions.append(Property.instant_book == True)
-            
+
+            if filters.get('instant_book') is not None:
+                conditions.append(Property.instant_book == filters['instant_book'])
+
             if filters.get('city'):
-                query = query.join(Property.location)
+                if Location not in joins:
+                    joins.append(Location)
                 conditions.append(Location.city.ilike(f"%{filters['city']}%"))
-            
+
             if filters.get('country'):
-                query = query.join(Property.location)
+                if Location not in joins:
+                    joins.append(Location)
                 conditions.append(Location.country.ilike(f"%{filters['country']}%"))
-            
-            if filters.get('user_id'):
-                conditions.append(Property.user_id == filters['user_id'])
-        
+
+        # Apply joins to main query
+        for join_table in joins:
+            query = query.join(join_table)
+
+        # Apply where conditions to main query
         if conditions:
             query = query.where(and_(*conditions))
+
+        # Build count query (use DISTINCT to avoid duplicates from joins)
+        if joins:
+            count_query = select(func.count(func.distinct(Property.id))).select_from(Property)
+            for join_table in joins:
+                count_query = count_query.join(join_table)
+        else:
+            count_query = select(func.count(Property.id)).select_from(Property)
         
-        # Get total count
-        count_query = select(func.count()).select_from(Property)
         if conditions:
             count_query = count_query.where(and_(*conditions))
+
         total_result = await self.db.execute(count_query)
-        total = total_result.scalar()
-        
+        total = total_result.scalar() or 0
+
         # Apply sorting
-        sort_by = filters.get('sort_by', 'newest') if filters else 'newest'
+        sort_by = (filters.get('sort_by') if filters else None) or 'newest'
         if sort_by == 'price_asc':
             query = query.order_by(Property.price_per_night.asc())
         elif sort_by == 'price_desc':
@@ -201,15 +228,67 @@ class PropertyRepository:
             query = query.order_by(Property.average_rating.desc())
         else:  # newest
             query = query.order_by(Property.created_at.desc())
+
+        # Apply pagination
+        query = query.offset(skip).limit(limit)
+
+        result = await self.db.execute(query)
+        properties = list(result.scalars().all())
+        print(f"{'*' * 20} Start: Inside repo properties: repo {'*' * 20}")
+        print(properties)
+        print(f"{'*' * 20} End: Inside repo properties:  {'*' * 20}")
+
+        return properties, int(total)
+    
+    
+    async def get_properties_by_host(
+        self,
+        host_id: UUID,
+        skip: int = 0,
+        limit: int = 20,
+        is_active: Optional[bool] = None
+    ) -> Tuple[List[Property], int]:
+        """
+        Get properties by host ID with pagination.
+        
+        Args:
+            host_id: UUID of the host
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            is_active: Optional filter for active/inactive properties
+            
+        Returns:
+            Tuple of (list of properties, total count)
+        """
+        query = select(Property).options(
+            joinedload(Property.location),
+            selectinload(Property.images)
+        ).where(Property.host_id == host_id)
+        
+        # Build count query
+        count_query = select(func.count(Property.id)).where(Property.host_id == host_id)
+        
+        # Apply active filter if specified
+        if is_active is not None:
+            query = query.where(Property.is_active == is_active)
+            count_query = count_query.where(Property.is_active == is_active)
+        
+        # Get total count
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar() or 0
+        
+        # Apply sorting (newest first)
+        query = query.order_by(Property.created_at.desc())
         
         # Apply pagination
         query = query.offset(skip).limit(limit)
         
+        # Execute query
         result = await self.db.execute(query)
         properties = list(result.scalars().all())
         
-        return properties, total
-    
+        return properties, int(total)
+
     async def update(self, property_id: UUID, update_data: PropertyUpdate) -> Optional[Property]:
         """Update property."""
         property_obj = await self.get_by_id(property_id)

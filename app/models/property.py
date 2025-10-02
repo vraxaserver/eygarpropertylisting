@@ -1,3 +1,4 @@
+# Change user_id to host_id
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Enum, Text, ForeignKey, Index, CheckConstraint, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -42,12 +43,12 @@ class Property(Base):
     pets_allowed = Column(Boolean, default=False)
     
     # Pricing (in cents to avoid floating point issues)
-    price_per_night = Column(Integer, nullable=False)  # Amount in cents
+    price_per_night = Column(Integer, nullable=False)
     currency = Column(String(3), nullable=False, default="USD")
-    cleaning_fee = Column(Integer, default=0)  # Amount in cents
-    service_fee = Column(Integer, default=0)  # Amount in cents
-    weekly_discount = Column(Integer, default=0)  # Percentage
-    monthly_discount = Column(Integer, default=0)  # Percentage
+    cleaning_fee = Column(Integer, default=0)
+    service_fee = Column(Integer, default=0)
+    weekly_discount = Column(Integer, default=0)
+    monthly_discount = Column(Integer, default=0)
     
     # Location (Foreign Key)
     location_id = Column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=False)
@@ -67,8 +68,11 @@ class Property(Base):
     average_rating = Column(Float, default=0.0, index=True)
     total_reviews = Column(Integer, default=0)
     
-    # Owner
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # Reference to auth service
+    # Host - DENORMALIZED DATA
+    host_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    host_name = Column(String(200), nullable=False)  # NEW
+    host_email = Column(String(255), nullable=False)  # NEW
+    host_avatar = Column(String(1000), nullable=True)  # NEW
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -93,13 +97,13 @@ class Property(Base):
         CheckConstraint('max_guests > 0', name='positive_max_guests'),
         CheckConstraint('average_rating >= 0 AND average_rating <= 5', name='valid_rating'),
         Index('idx_property_location_active', 'location_id', 'is_active'),
-        Index('idx_property_user_active', 'user_id', 'is_active'),
+        Index('idx_property_host_active', 'host_id', 'is_active'),
         Index('idx_property_search', 'property_type', 'is_active', 'verification_status'),
     )
     
     def __repr__(self):
-        return f"<Property(id={self.id}, title='{self.title}')>"
-
+        return f"<Property(id={self.id}, title='{self.title}', host='{self.host_name}')>"
+    
 
 class Location(Base):
     __tablename__ = "locations"
@@ -125,3 +129,4 @@ class Location(Base):
     
     def __repr__(self):
         return f"<Location(city='{self.city}', country='{self.country}')>"
+    
