@@ -28,14 +28,14 @@ class PropertyInserter:
         self.auth_service_url = "http://127.0.0.1:8000"
         self.host_cache = {}
     
-    async def fetch_host_info(self, host_id: str) -> Optional[Dict]:
+    def fetch_host_info(self, host_id: str) -> Optional[Dict]:
         """Fetch host information from auth service."""
         if host_id in self.host_cache:
             return self.host_cache[host_id]
         
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(
                     f"{self.auth_service_url}/api/profiles/hosts/{host_id}/",
                     timeout=10.0
                 )
@@ -52,9 +52,9 @@ class PropertyInserter:
                     # Build host info
                     host_info = {
                         'host_id': eygar_host['id'],
-                        'host_name': host_data.get('username', 'Host'),
-                        'host_email': host_data.get('email', ''),
-                        'host_avatar': host_data.get('avatar', '')
+                        'host_name': eygar_host.get('username', 'Host'),
+                        'host_email': eygar_host.get('email', ''),
+                        'host_avatar': eygar_host.get('avatar', '')
                     }
                     
                     self.host_cache[host_id] = host_info
@@ -120,7 +120,9 @@ class PropertyInserter:
         try:
             # Select random host
             host_user_id = random.choice(host_ids)
-            host_info = await self.fetch_host_info(host_user_id)
+            print("========= host_user_id: ", host_user_id)
+            host_info = self.fetch_host_info(host_user_id)
+            print("========= host_info: ", host_info)
             
             if not host_info:
                 print(f"  Skipping property '{property_data.get('title')}' - couldn't fetch host info")

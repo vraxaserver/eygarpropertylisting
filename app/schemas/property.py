@@ -3,7 +3,7 @@ from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
 from app.models.property import PropertyType, PlaceType, VerificationStatus
-
+from app.schemas.experience import ExperienceResponse
 
 class LocationBase(BaseModel):
     address: str = Field(..., min_length=5, max_length=500)
@@ -17,7 +17,7 @@ class LocationBase(BaseModel):
 
 class LocationResponse(LocationBase):
     id: UUID
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -32,7 +32,7 @@ class PropertyImageResponse(PropertyImageBase):
     id: UUID
     property_id: UUID
     uploaded_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -41,14 +41,14 @@ class HostInfoResponse(BaseModel):
     id: UUID
     name: str
     email: str
-    avatar_url: Optional[str] = None
-    
+    avatar: Optional[str] = None
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class PropertyBase(BaseModel):
     title: str = Field(..., min_length=10, max_length=200)
-    description: str = Field(..., min_length=50)
+    description: str = Field(..., min_length=20)
     property_type: PropertyType
     place_type: PlaceType
     bedrooms: int = Field(default=1, ge=0)
@@ -76,7 +76,7 @@ class PropertyCreate(PropertyBase):
     house_rules: List[str] = Field(default_factory=list)
     cancellation_policy: Optional[str] = None
     check_in_policy: Optional[str] = None
-    
+
     @field_validator('images')
     @classmethod
     def validate_images(cls, v):
@@ -130,10 +130,11 @@ class PropertyResponse(PropertyBase):
     average_rating: float
     total_reviews: int
     images: List[PropertyImageResponse]
+    experiences: List[ExperienceResponse] = []
     created_at: datetime
     updated_at: datetime
     published_at: Optional[datetime]
-    
+
     # Computed property for backward compatibility
     @property
     def host(self) -> HostInfoResponse:
@@ -141,9 +142,9 @@ class PropertyResponse(PropertyBase):
             id=self.host_id,
             name=self.host_name,
             email=self.host_email,
-            avatar_url=self.host_avatar
+            avatar=self.host_avatar
         )
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -169,7 +170,8 @@ class PropertyListResponse(BaseModel):
     location: LocationResponse
     cover_image: Optional[str] = None
     images: List[str] = []
-    
+    experiences: List[ExperienceResponse] = []
+
     # Computed property for backward compatibility
     @property
     def host(self) -> HostInfoResponse:
@@ -177,7 +179,7 @@ class PropertyListResponse(BaseModel):
             id=self.host_id,
             name=self.host_name,
             email=self.host_email,
-            avatar_url=self.host_avatar
+            avatar=self.host_avatar
         )
-    
+
     model_config = ConfigDict(from_attributes=True)

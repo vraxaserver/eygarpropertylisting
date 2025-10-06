@@ -94,6 +94,7 @@ class Property(Base):
     availabilities = relationship("Availability", back_populates="property", cascade="all, delete-orphan")
     rules = relationship("PropertyRule", back_populates="property", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="property", cascade="all, delete-orphan")
+    experiences = relationship("Experience", secondary="property_experiences", back_populates="properties")
     
     # Constraints
     __table_args__ = (

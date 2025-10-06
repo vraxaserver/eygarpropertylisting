@@ -4,6 +4,7 @@ from app.models.amenity import Amenity, SafetyFeature, AmenityCategory, property
 from app.models.availability import Availability
 from app.models.rule import PropertyRule, RuleType
 from app.models.review import Review
+from app.models.experience import Experience, property_experiences
 
 __all__ = [
     "Property",
@@ -20,4 +21,6 @@ __all__ = [
     "PropertyRule",
     "RuleType",
     "Review",
+    "Experience",
+    "property_experiences",
 ]
