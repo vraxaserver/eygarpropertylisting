@@ -1,19 +1,20 @@
-# Python
-__pycache__/
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Virtual environments
 venv/
 env/
 ENV/
 .venv
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
 
 # IDE
 .vscode/
@@ -22,26 +23,45 @@ htmlcov/
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Git
-.git/
-.gitignore
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
 
 # Documentation
 *.md
 docs/
+README.md
+LICENSE
 
-# Environment
-.env
-.env.local
-.env.*.local
-.venv
-.vscode
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
 # Logs
 *.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Development files
+.env.local
+.env.development
+.env.example
+tests/
+test_*.py
+*_test.py
+
 
 # Database
 *.db
@@ -55,8 +75,3 @@ alembic/versions/*.pyc
 # Tests
 tests/
 pytest.ini
-
-# Docker
-Dockerfile
-docker-compose.yml
-.dockerignore

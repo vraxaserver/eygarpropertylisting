@@ -1,0 +1,77 @@
+# ---------- Builder stage: build wheels (keeps compile toolchain out of final image) ----------
+FROM python:3.12-slim AS builder
+
+# Environment (build-time)
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /build
+
+# Install build dependencies only in builder
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    gcc \
+    build-essential \
+    libpq-dev \
+    python3-dev \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and build wheels
+COPY requirements.txt ./
+# build wheels into /wheels to speed up final install and avoid recompiles in final image
+RUN python -m pip install --upgrade pip \
+ && pip wheel --no-deps --wheel-dir /wheels -r requirements.txt
+
+# Copy application source (no need to copy venv)
+COPY . /build/app
+
+# ---------- Runtime stage: minimal runtime image ----------
+FROM python:3.12-slim AS runtime
+
+# Environment (runtime)
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Install only runtime OS deps (libpq client libs, curl for healthcheck)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+ && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user and group early so we can use --chown on COPY
+ARG APP_USER=appuser
+ARG APP_UID=1000
+RUN groupadd -g ${APP_UID} ${APP_USER} \
+ && useradd -m -u ${APP_UID} -g ${APP_UID} ${APP_USER}
+
+# Copy wheels from builder and install from wheels (no compilation in runtime)
+COPY --from=builder /wheels /wheels
+COPY --from=builder /build/app /app
+
+# Use pip to install from local wheels directory; fallback to index if a package has no wheel
+RUN python -m pip install --upgrade pip \
+ && pip install --no-index --find-links /wheels -r requirements.txt \
+    || pip install --no-cache-dir -r requirements.txt \
+ && rm -rf /wheels
+
+# Make sure app files are owned by non-root user
+RUN chown -R ${APP_USER}:${APP_USER} /app
+
+USER ${APP_USER}
+
+# Expose port used by uvicorn
+EXPOSE 8001
+
+# Lightweight healthcheck using curl (curl is installed in runtime)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl --fail --silent http://localhost:8001/health || exit 1
+
+# Default command (overrideable)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

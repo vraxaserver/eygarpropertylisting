@@ -51,7 +51,7 @@ class PropertyInserter:
                     
                     # Build host info
                     host_info = {
-                        'host_id': eygar_host['id'],
+                        'host_id': host_data['id'],
                         'host_name': eygar_host.get('username', 'Host'),
                         'host_email': eygar_host.get('email', ''),
                         'host_avatar': eygar_host.get('avatar', '')
