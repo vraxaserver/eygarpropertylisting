@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from typing import List, Optional
 import json
 
 
@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Property Listing Service"
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
+    ENVIRONMENT: str = "development"
 
     # Server
     HOST: str = "0.0.0.0"
@@ -38,7 +39,21 @@ class Settings(BaseSettings):
 
     # File Upload
     MAX_UPLOAD_SIZE: int = 5242880  # 5MB
+    MAX_FILE_SIZE: int = 10 * 1024 * 1024
     ALLOWED_IMAGE_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp"]
+    ALLOWED_EXTENSIONS: set = {"jpg", "jpeg", "png", "gif", "webp"}
+
+    # Local Storage (Development)
+    MEDIA_DIR: str = "media/images"
+    BASE_URL: str = "http://127.0.0.1:8001"
+
+    # AWS S3 (Production)
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_REGION: str = "us-east-1"
+    S3_BUCKET_NAME: Optional[str] = None
+    S3_FOLDER: str = "property-images"
+    CLOUDFRONT_DOMAIN: Optional[str] = None
 
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True

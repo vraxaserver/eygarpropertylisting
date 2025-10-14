@@ -23,6 +23,7 @@ class PropertyRepository:
                      host_avatar: Optional[str],
                      slug: str) -> Property:
         """Create a new property with all related data."""
+
         # Create location
         location = Location(**property_data.location.model_dump())
         self.db.add(location)
@@ -41,7 +42,10 @@ class PropertyRepository:
         }
         property_obj = Property(
             **property_dict,
-            host=host,
+            host_id=host_id,
+            host_name=host_name,
+            host_email=host_email,
+            host_avatar=host_avatar,
             location_id=location.id,
             slug=slug
         )

@@ -130,7 +130,7 @@ class PropertyResponse(PropertyBase):
     average_rating: float
     total_reviews: int
     images: List[PropertyImageResponse]
-    experiences: List[ExperienceResponse] = []
+    # experiences: List[ExperienceResponse] = []
     created_at: datetime
     updated_at: datetime
     published_at: Optional[datetime]

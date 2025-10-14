@@ -23,9 +23,9 @@ def property_to_list_response(prop: Property) -> PropertyListResponse:
     cover_image = next((img.image_url for img in prop.images if img.is_cover), None)
     if not cover_image and prop.images:
         cover_image = prop.images[0].image_url
-    
+
     image_urls = [img.image_url for img in prop.images]
-    
+
     return PropertyListResponse(
         id=prop.id,
         title=prop.title,
@@ -51,6 +51,39 @@ def property_to_list_response(prop: Property) -> PropertyListResponse:
     )
 
 
+
+@router.get("/my", response_model=PaginatedResponse[PropertyListResponse])
+async def get_my_properties(
+    pagination: PaginationParams = Depends(),
+    current_user: UserInfo = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all properties owned by the authenticated host."""
+    if not current_user.host_info or not current_user.host_info.id:
+        return PaginatedResponse.create(
+            items=[],
+            total=0,
+            page=pagination.page,
+            page_size=pagination.page_size
+        )
+
+    service = PropertyService(db)
+    properties, total = await service.get_host_properties(
+        current_user.host_info.id,
+        skip=pagination.skip,
+        limit=pagination.limit
+    )
+
+    property_list = [property_to_list_response(prop) for prop in properties]
+
+    return PaginatedResponse.create(
+        items=property_list,
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size
+    )
+
+
 @router.post("/", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
 async def create_property(
     property_data: PropertyCreate,
@@ -63,15 +96,15 @@ async def create_property(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can create properties. Please complete host registration."
         )
-    
+
     # Prepare host information
     host_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or "Host"
     host_email = current_user.email
     host_avatar = current_user.avatar_url
-    
+
     service = PropertyService(db)
     property_obj = await service.create_property(
-        property_data, 
+        property_data,
         current_user.host_info.id,
         host_name,
         host_email,
@@ -84,7 +117,7 @@ async def create_property(
 async def list_properties(
     pagination: PaginationParams = Depends(),
     property_type: Optional[PropertyType] = None,
-    place_type: Optional[PlaceType] = None, 
+    place_type: Optional[PlaceType] = None,
     city: Optional[str] = None,
     country: Optional[str] = None,
     min_price: Optional[int] = Query(None, description="Minimum price in cents"),
@@ -113,9 +146,9 @@ async def list_properties(
         'instant_book': instant_book,
         'sort_by': sort_by
     }
-    
+
     filters = {k: v for k, v in filters.items() if v is not None}
-    
+
     service = PropertyService(db)
     properties, total = await service.list_properties(
         skip=pagination.skip,
@@ -124,7 +157,7 @@ async def list_properties(
     )
 
     property_list = [property_to_list_response(prop) for prop in properties]
-    
+
     return PaginatedResponse.create(
         items=property_list,
         total=total,
@@ -170,30 +203,30 @@ async def search_properties(
         'instant_book': instant_book,
         'sort_by': sort_by
     }
-    
+
     # Handle location search
     if location:
         # Simple implementation - search in city or country
         filters['city'] = location
-    
+
     # Handle guest capacity
     if adults:
         total_guests = adults + (children or 0)
         filters['max_guests'] = total_guests
-    
+
     # Remove None values
     filters = {k: v for k, v in filters.items() if v is not None}
-    
+
     service = PropertyService(db)
     properties, total = await service.list_properties(
         skip=pagination.skip,
         limit=pagination.limit,
         filters=filters
     )
-    
+
     # Convert to list response
     property_list = [property_to_list_response(prop) for prop in properties]
-        
+
     return PaginatedResponse.create(
         items=property_list,
         total=total,
@@ -236,13 +269,13 @@ async def get_property(
     """Get property details by ID."""
     service = PropertyService(db)
     property_obj = await service.get_property(property_id)
-    
+
     if not property_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Property not found"
         )
-    
+
     # Only show inactive properties to owner
     if not property_obj.is_active:
         if not current_user or property_obj.host_id != (current_user.host_info.id if current_user.host_info else None):
@@ -250,7 +283,7 @@ async def get_property(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Property not found"
             )
-    
+
     return property_obj
 
 
@@ -271,9 +304,9 @@ async def update_property(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can update properties"
         )
-    
+
     service = PropertyService(db)
-    
+
     try:
         property_obj = await service.update_property(property_id, update_data, current_user.host_info.id)
     except PermissionError as e:
@@ -281,13 +314,13 @@ async def update_property(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e)
         )
-    
+
     if not property_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Property not found"
         )
-    
+
     return property_obj
 
 
@@ -321,9 +354,9 @@ async def delete_property(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can delete properties"
         )
-    
+
     service = PropertyService(db)
-    
+
     try:
         deleted = await service.delete_property(property_id, current_user.host_info.id)
     except PermissionError as e:
@@ -331,13 +364,13 @@ async def delete_property(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e)
         )
-    
+
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Property not found"
         )
-    
+
     return MessageResponse(message="Property deleted successfully")
 
 
@@ -358,7 +391,7 @@ async def get_host_properties(
     # Filter active only for public view
     active_properties = [prop for prop in properties if prop.is_active]
     property_list = [property_to_list_response(prop) for prop in active_properties]
-    
+
     return PaginatedResponse.create(
         items=property_list,
         total=len(property_list),

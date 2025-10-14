@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from datetime import datetime
 import logging
@@ -9,6 +10,7 @@ from app.config import settings
 from app.database import init_db, close_db
 from app.api.v1.router import api_router
 from app.schemas.common import HealthResponse, MessageResponse
+import os
 
 
 # Configure logging
@@ -27,9 +29,9 @@ async def lifespan(app: FastAPI):
     # Note: Database tables are created via Alembic migrations
     # await init_db()  # Uncomment for development without Alembic
     logger.info("Service started successfully")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Property Listing Service...")
     await close_db()
@@ -56,6 +58,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+if settings.ENVIRONMENT == "development":
+    if os.path.exists("media"):
+        app.mount("/media", StaticFiles(directory="media"), name="media")
 
 # Global exception handlers
 @app.exception_handler(RequestValidationError)
