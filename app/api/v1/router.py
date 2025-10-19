@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import properties, reviews, amenities, my_properties, experiences, images
+from app.api.v1.endpoints import properties, reviews, amenities, my_properties, experiences, images, categories
 
 
 api_router = APIRouter()
@@ -12,6 +12,9 @@ api_router.include_router(reviews.router, tags=["reviews"])
 
 # Amenities and safety features
 api_router.include_router(amenities.router, tags=["amenities"])
+
+# Property Categories
+api_router.include_router(categories.router, tags=["categories"])
 
 # My properties
 api_router.include_router(my_properties.router, tags=["my-properties"])

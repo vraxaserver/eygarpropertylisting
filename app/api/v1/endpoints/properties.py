@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
+from datetime import date
 from app.database import get_db
 from app.dependencies import get_current_active_user, PaginationParams, get_optional_user
 from app.schemas.common import UserInfo, PaginatedResponse, MessageResponse
@@ -14,8 +15,8 @@ from app.schemas.property import (
 from app.services.property_service import PropertyService
 from app.models.property import PropertyType, PlaceType, Property
 
-
 router = APIRouter()
+
 
 # Add this helper function at the top of properties.py after imports
 def property_to_list_response(prop: Property) -> PropertyListResponse:
@@ -116,37 +117,22 @@ async def create_property(
 @router.get("/", response_model=PaginatedResponse[PropertyListResponse])
 async def list_properties(
     pagination: PaginationParams = Depends(),
-    property_type: Optional[PropertyType] = None,
-    place_type: Optional[PlaceType] = None,
-    city: Optional[str] = None,
-    country: Optional[str] = None,
-    min_price: Optional[int] = Query(None, description="Minimum price in cents"),
-    max_price: Optional[int] = Query(None, description="Maximum price in cents"),
-    bedrooms: Optional[int] = Query(None, ge=0),
-    beds: Optional[int] = Query(None, ge=0),
-    bathrooms: Optional[float] = Query(None, ge=0),
-    max_guests: Optional[int] = Query(None, gt=0),
-    instant_book: Optional[bool] = None,
+    # Sorting
     sort_by: Optional[str] = Query("newest", regex="^(price_asc|price_desc|rating|newest)$"),
     db: AsyncSession = Depends(get_db)
 ):
-    """List all properties with filtering and pagination."""
+    """
+    List all properties with filtering and pagination.
+    """
+
+    # Build filters dictionary
     filters = {
         'is_active': True,
-        'property_type': property_type,
-        'place_type': place_type,
-        'city': city,
-        'country': country,
-        'min_price': min_price,
-        'max_price': max_price,
-        'bedrooms': bedrooms,
-        'beds': beds,
-        'bathrooms': bathrooms,
-        'max_guests': max_guests,
-        'instant_book': instant_book,
+        
         'sort_by': sort_by
     }
 
+    # Remove None values
     filters = {k: v for k, v in filters.items() if v is not None}
 
     service = PropertyService(db)
@@ -194,7 +180,7 @@ async def search_properties(
     filters = {
         'is_active': True,
         'property_type': property_type,
-        'place_type': place_type,
+        'place_type': 'entire_place',
         'min_price': min_price,
         'max_price': max_price,
         'bedrooms': bedrooms,

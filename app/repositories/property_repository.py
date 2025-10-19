@@ -159,6 +159,8 @@ class PropertyRepository:
         conditions = []
 
         if filters:
+            # ===== EXISTING FILTERS =====
+
             # Check for host_id in filters
             if filters.get('host_id'):
                 conditions.append(Property.host_id == filters['host_id'])
@@ -207,6 +209,113 @@ class PropertyRepository:
                     joins.append(Location)
                 conditions.append(Location.country.ilike(f"%{filters['country']}%"))
 
+            # ===== NEW FILTERS =====
+
+            # Search filter (searches across multiple fields)
+            if filters.get('search'):
+                search_term = f"%{filters['search']}%"
+                if Location not in joins:
+                    joins.append(Location)
+                conditions.append(
+                    or_(
+                        Property.title.ilike(search_term),
+                        Property.description.ilike(search_term),
+                        Location.city.ilike(search_term),
+                        Location.state.ilike(search_term),
+                        Location.country.ilike(search_term),
+                        Location.address.ilike(search_term)
+                    )
+                )
+
+            # Category filter (search in title and description)
+            if filters.get('category'):
+                category = filters['category'].lower()
+                conditions.append(
+                    or_(
+                        Property.title.ilike(f"%{category}%"),
+                        Property.description.ilike(f"%{category}%")
+                    )
+                )
+
+            # Guest capacity filters
+            if filters.get('guests'):
+                conditions.append(Property.max_guests >= filters['guests'])
+
+            if filters.get('adults'):
+                # Assuming adults + children should not exceed max_guests
+                total_guests = filters['adults'] + filters.get('children', 0)
+                conditions.append(Property.max_guests >= total_guests)
+
+            # Property types (multiple)
+            if filters.get('property_types'):
+                property_types = filters['property_types']
+                if isinstance(property_types, str):
+                    property_types = [pt.strip() for pt in property_types.split(',')]
+                conditions.append(Property.place_type.in_(property_types))
+
+            # Amenities filter
+            if filters.get('amenities'):
+                amenity_ids = filters['amenities']
+                if isinstance(amenity_ids, str):
+                    amenity_ids = [int(id.strip()) for id in amenity_ids.split(',')]
+
+                # Property must have all selected amenities
+                for amenity_id in amenity_ids:
+                    # Using subquery to check if property has this amenity
+                    amenity_subquery = (
+                        select(property_amenities.property_id)
+                        .where(
+                            and_(
+                                property_amenities.property_id == Property.id,
+                                property_amenities.amenity_id == amenity_id
+                            )
+                        )
+                    )
+                    conditions.append(Property.id.in_(amenity_subquery))
+
+            # Experiences filter
+            if filters.get('has_experiences'):
+                # Assuming you have an experiences relationship
+                # You might need to adjust this based on your actual model structure
+                pass  # TODO: Implement when experiences relationship is available
+
+            # Date availability filter
+            if filters.get('check_in') and filters.get('check_out'):
+                # TODO: Implement booking availability check when Booking model is ready
+                # This would exclude properties that have overlapping bookings
+                # For now, we'll skip this filter
+                pass
+
+                # Uncomment when Booking model is available:
+                """
+                from app.models.booking import Booking
+
+                subquery = (
+                    select(Booking.property_id)
+                    .where(
+                        and_(
+                            Booking.property_id == Property.id,
+                            Booking.status.in_(['confirmed', 'pending']),
+                            or_(
+                                and_(
+                                    Booking.check_in_date <= filters['check_in'],
+                                    Booking.check_out_date > filters['check_in']
+                                ),
+                                and_(
+                                    Booking.check_in_date < filters['check_out'],
+                                    Booking.check_out_date >= filters['check_out']
+                                ),
+                                and_(
+                                    Booking.check_in_date >= filters['check_in'],
+                                    Booking.check_out_date <= filters['check_out']
+                                )
+                            )
+                        )
+                    )
+                )
+                conditions.append(~Property.id.in_(subquery))
+                """
+
         # Apply joins to main query
         for join_table in joins:
             query = query.join(join_table)
@@ -245,12 +354,14 @@ class PropertyRepository:
 
         result = await self.db.execute(query)
         properties = list(result.scalars().all())
+
         print(f"{'*' * 20} Start: Inside repo properties: repo {'*' * 20}")
-        print(properties)
+        print(f"Total properties found: {total}")
+        print(f"Properties returned: {len(properties)}")
+        print(f"Applied filters: {filters}")
         print(f"{'*' * 20} End: Inside repo properties:  {'*' * 20}")
 
         return properties, int(total)
-
 
     async def get_properties_by_host(
         self,
