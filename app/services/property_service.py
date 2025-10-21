@@ -52,10 +52,10 @@ class PropertyService:
                 or_(
                     Property.title.ilike(search_term),
                     Property.description.ilike(search_term),
-                    Property.location.has(PropertyLocation.city.ilike(search_term)),
-                    Property.location.has(PropertyLocation.state.ilike(search_term)),
-                    Property.location.has(PropertyLocation.country.ilike(search_term)),
-                    Property.location.has(PropertyLocation.address.ilike(search_term))
+                    Property.location.has(Location.city.ilike(search_term)),
+                    Property.location.has(Location.state.ilike(search_term)),
+                    Property.location.has(Location.country.ilike(search_term)),
+                    Property.location.has(Location.address.ilike(search_term))
                 )
             )
 
@@ -120,10 +120,10 @@ class PropertyService:
 
         # Location filters
         if filters.get('city'):
-            conditions.append(Property.location.has(PropertyLocation.city.ilike(f"%{filters['city']}%")))
+            conditions.append(Property.location.has(Location.city.ilike(f"%{filters['city']}%")))
 
         if filters.get('country'):
-            conditions.append(Property.location.has(PropertyLocation.country.ilike(f"%{filters['country']}%")))
+            conditions.append(Property.location.has(Location.country.ilike(f"%{filters['country']}%")))
 
         # Price filters
         if filters.get('min_price') is not None:
