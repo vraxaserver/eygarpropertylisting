@@ -26,12 +26,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # CORS
-    ALLOWED_ORIGINS: str = '["http://localhost:3000","http://127.0.0.1:3000", "https://dev.eygar.com"]'
-    origins = [
-        "https://dev.eygar.com",
-        "http://host.docker.internal:3000",
-        "http://localhost:3000"
-    ]
+    # ALLOWED_ORIGINS: str = '["http://localhost:3000","http://127.0.0.1:3000", "https://dev.eygar.com"]'
+    ALLOWED_ORIGINS: List[str] = Field(
+        default_factory=lambda: [
+            "https://dev.eygar.com",
+            "http://host.docker.internal:3000",
+            "http://localhost:3000",
+        ]
+    )
 
     # Redis Cache
     REDIS_URL: str = "redis://localhost:6380/0"
