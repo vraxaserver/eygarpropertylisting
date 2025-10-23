@@ -1,74 +1,55 @@
-# ---------- Builder stage ----------
-FROM python:3.12-alpine3.18 AS builder
+# === Buildable, small, secure Dockerfile for FastAPI ===
+FROM python:3.12-slim AS base
 
-ENV PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONDONTWRITEBYTECODE=1
+# Environment: avoid writing .pyc, enable unbuffered stdout/stderr
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    PATH="/home/app/.local/bin:$PATH"
 
-WORKDIR /build
-
-RUN apk add --no-cache \
-      build-base \
-      libffi-dev \
-      openssl-dev \
-      postgresql-dev \
-      musl-dev \
-      linux-headers \
-      ca-certificates \
-      curl \
- && python -m pip install --upgrade pip setuptools wheel
-
-COPY requirements.txt .
-RUN pip wheel --no-deps --wheel-dir /wheels -r requirements.txt
-
-COPY . /build/app
-
-
-# ---------- Runtime stage ----------
-FROM python:3.12-alpine3.18 AS runtime
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PATH="/opt/venv/bin:$PATH"
+# Arguments (override at build/run time if desired)
+ARG APP_USER=app
+ARG APP_UID=1000
+ARG PORT=8000
+ENV PORT=${PORT}
 
 WORKDIR /app
 
-RUN apk add --no-cache \
-      postgresql-libs \
-      libstdc++ \
+# Install system deps required to build some Python packages and to run
+# (add libpq-dev or other dev libs if you need DB drivers built from source)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      build-essential \
+      gcc \
+      libpq-dev \
+      curl \
       ca-certificates \
-      tini \
-      curl
+ && rm -rf /var/lib/apt/lists/*
 
-ARG APP_USER=appuser
-ARG APP_UID=1000
-RUN addgroup -g ${APP_UID} ${APP_USER} \
- && adduser -D -u ${APP_UID} -G ${APP_USER} ${APP_USER}
+# Copy dependency manifest first to leverage Docker cache
+# Use requirements.txt (if you use poetry/poetry.lock or pyproject.toml, modify accordingly)
+COPY requirements.txt .
 
-COPY --from=builder /wheels /wheels
-COPY --from=builder /build/app /app
+# Upgrade pip and install dependencies into user local to avoid root site-packages issues
+RUN python -m pip install --upgrade pip setuptools wheel \
+ && python -m pip install --no-cache-dir -r requirements.txt
 
-RUN python -m venv /opt/venv \
- && /opt/venv/bin/pip install --upgrade pip \
- && /opt/venv/bin/pip install --no-index --find-links /wheels -r requirements.txt \
-    || /opt/venv/bin/pip install --no-cache-dir -r requirements.txt \
- && rm -rf /wheels /root/.cache/pip
+# Copy application code
+COPY . /app
 
-# Copy startup script
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Create unprivileged user and chown app directory
+RUN useradd -u ${APP_UID} -m ${APP_USER} \
+ && chown -R ${APP_USER}:${APP_USER} /app
 
-RUN chown -R ${APP_USER}:${APP_USER} /app
 USER ${APP_USER}
 
-EXPOSE 8001
-STOPSIGNAL SIGTERM
+EXPOSE ${PORT}
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl --fail --silent http://localhost:8001/health || exit 1
+# Healthcheck (optional) — checks root; adjust path to /health or /ready if your app provides one
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD python -c "import sys,urllib.request as u; \
+try: u.urlopen(f'http://127.0.0.1:{int(${PORT})}/', timeout=2); \
+except Exception as e: sys.exit(1)" || exit 1
 
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+# Default command: run Uvicorn. Replace app.main:app with your ASGI app path.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--proxy-headers", "--loop", "auto", "--http", "auto"]
