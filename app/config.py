@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     PORT: int = 8001
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:UV7bDpcLAaazRFsqVf16@eygardatabase-instance.cj480emqyx9y.me-central-1.rds.amazonaws.com:5432/dev_eygar_property_listing"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:U0AYpVZMF1GxRUbSsd23@eygardatabase-instance.cj480emqyx9y.me-central-1.rds.amazonaws.com:5432/dev_eygar_property_listing"
 
     # Auth Service Integration
     AUTH_SERVICE_URL: str = "http://127.0.0.1:8000"
