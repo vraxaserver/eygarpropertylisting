@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional, Field
+from typing import List, Optional
+from pydantic import Field
 import json
 
 
