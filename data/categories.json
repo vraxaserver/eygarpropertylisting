@@ -3,60 +3,60 @@
         "name": "Beachfront",
         "slug": "beachfront",
         "description": "Properties located right on the beach.",
-        "icon": "icon-beachfront",
+        "icon": "icon-beachfront"
     },
     {
         "name": "Cabins",
         "slug": "cabins",
         "description": "Cozy and secluded cabin rentals.",
-        "icon": "icon-cabins",
+        "icon": "icon-cabins"
     },
     {
         "name": "Trending",
         "slug": "trending",
         "description": "The most popular and in-demand places right now.",
-        "icon": "icon-trending",
+        "icon": "icon-trending"
     },
     {
         "name": "Tropical",
         "slug": "tropical",
         "description": "Stays in warm, tropical destinations.",
-        "icon": "icon-tropical",
+        "icon": "icon-tropical"
     },
     {
         "name": "Unique stays",
         "slug": "unique_stays",
         "description": "One-of-a-kind places to stay.",
-        "icon": "icon-unique",
+        "icon": "icon-unique"
     },
     {
         "name": "Castles",
         "slug": "castles",
         "description": "Experience life in a historic castle.",
-        "icon": "icon-castles",
+        "icon": "icon-castles"
     },
     {
         "name": "Countryside",
         "slug": "countryside",
         "description": "Escape to the serene, open countryside.",
-        "icon": "icon-countryside",
+        "icon": "icon-countryside"
     },
     {
         "name": "Design",
         "slug": "design",
         "description": "Architecturally stunning and modern homes.",
-        "icon": "icon-design",
+        "icon": "icon-design"
     },
     {
         "name": "Islands",
         "slug": "islands",
         "description": "Getaway properties on beautiful islands.",
-        "icon": "icon-islands",
+        "icon": "icon-islands"
     },
     {
         "name": "Lakefront",
         "slug": "lakefront",
         "description": "Homes right on the edge of a lake.",
-        "icon": "icon-lakefront",
-    },
+        "icon": "icon-lakefront"
+    }
 ]

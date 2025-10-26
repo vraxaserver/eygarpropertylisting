@@ -53,6 +53,7 @@ origins = [
     "https://dev.eygar.com",
     "http://localhost:3000",  # optional for local dev
     "http://127.0.0.1:3000",
+    "http://172.31.10.140:3000",
 ]
 
 # Configure CORS

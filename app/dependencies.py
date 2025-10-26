@@ -19,30 +19,33 @@ async def get_current_user(
     Validate JWT token with Django auth service and return user info.
     """
     token = credentials.credentials
-    
+
     # Verify token with Django auth service
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
-                f"{settings.AUTH_SERVICE_URL}/api/auth/profile/",
+                f"{settings.AUTH_SERVICE_URL}/profile/",
                 headers={"Authorization": f"Bearer {token}"}
             )
-            
+
             if response.status_code == 401:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid or expired token",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-            
+
             if response.status_code != 200:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Could not validate credentials",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-            
+
             user_data = response.json()
+            print("==========user_data==============")
+            print(f"{settings.AUTH_SERVICE_URL}")
+            print(user_data)
 
             host_data = user_data.get("eygar_host")
             host_info_obj = None
@@ -61,7 +64,7 @@ async def get_current_user(
                     submitted_at=host_data.get("submitted_at"),
                     reviewed_at=host_data.get("reviewed_at")
                 )
-            
+
             # Map Django user response to UserInfo
             return UserInfo(
                 id=user_data.get("id"),
@@ -75,7 +78,7 @@ async def get_current_user(
                 is_superuser=user_data.get("is_superuser", False),
                 host_info=host_info_obj
             )
-            
+
     except httpx.TimeoutException:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -116,7 +119,7 @@ async def get_optional_user(
     """
     if credentials is None:
         return None
-    
+
     try:
         return await get_current_user(credentials)
     except HTTPException:
@@ -125,7 +128,7 @@ async def get_optional_user(
 
 class PaginationParams:
     """Pagination query parameters."""
-    
+
     def __init__(
         self,
         page: int = Query(1, ge=1, description="Page number"),
@@ -134,7 +137,7 @@ class PaginationParams:
         self.page = page
         self.page_size = page_size
         self.skip = (page - 1) * page_size
-    
+
     @property
     def limit(self) -> int:
         return self.page_size

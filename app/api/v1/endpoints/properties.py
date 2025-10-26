@@ -128,7 +128,7 @@ async def list_properties(
     # Build filters dictionary
     filters = {
         'is_active': True,
-        
+
         'sort_by': sort_by
     }
 
@@ -321,6 +321,8 @@ async def partial_update_property(
     Partially update property (owner only).
     Requires authentication.
     """
+    print("==========================")
+    print(current_user)
     return await update_property(property_id, update_data, current_user, db)
 
 

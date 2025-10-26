@@ -1,5 +1,5 @@
 """
-Script to initialize amenities and safety features from JSON files.
+Script to initialize amenities, safety features, and categories from JSON files.
 """
 import asyncio
 import sys
@@ -9,9 +9,10 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from app.database import AsyncSessionLocal
 from app.models.amenity import Amenity, SafetyFeature, AmenityCategory
+from app.models.property import Category  # Import the Category model
 
 
 async def load_amenities(session, json_file: str):
@@ -25,42 +26,42 @@ async def load_amenities(session, json_file: str):
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON in {json_file}: {e}")
         return 0
-    
+
     # Handle both list and dict with 'amenities' key
     if isinstance(amenities_data, dict):
         amenities_data = amenities_data.get('amenities', [])
-    
+
     if not isinstance(amenities_data, list):
         print(f"Error: Expected array of amenities, got {type(amenities_data)}")
         return 0
-    
+
     count = 0
     for amenity_data in amenities_data:
         name = amenity_data.get('name')
         category = amenity_data.get('category', 'basic')
         icon = amenity_data.get('icon', '')
-        
+
         if not name:
             print(f"Warning: Skipping amenity without name: {amenity_data}")
             continue
-        
+
         # Check if already exists
         result = await session.execute(
             select(Amenity).where(Amenity.name == name)
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             print(f"  Amenity '{name}' already exists, skipping")
             continue
-        
+
         # Validate category
         try:
             category_enum = AmenityCategory(category.lower())
         except ValueError:
             print(f"  Warning: Invalid category '{category}' for amenity '{name}', using 'basic'")
             category_enum = AmenityCategory.BASIC
-        
+
         # Create new amenity
         amenity = Amenity(
             name=name,
@@ -70,7 +71,7 @@ async def load_amenities(session, json_file: str):
         session.add(amenity)
         count += 1
         print(f"  + Added amenity: {name} ({category_enum.value})")
-    
+
     await session.commit()
     return count
 
@@ -86,35 +87,35 @@ async def load_safety_features(session, json_file: str):
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON in {json_file}: {e}")
         return 0
-    
+
     # Handle both list and dict with 'safety_features' key
     if isinstance(features_data, dict):
         features_data = features_data.get('safety_features', features_data.get('safetyFeatures', []))
-    
+
     if not isinstance(features_data, list):
         print(f"Error: Expected array of safety features, got {type(features_data)}")
         return 0
-    
+
     count = 0
     for feature_data in features_data:
         name = feature_data.get('name')
         description = feature_data.get('description', '')
         icon = feature_data.get('icon', '')
-        
+
         if not name:
             print(f"Warning: Skipping safety feature without name: {feature_data}")
             continue
-        
+
         # Check if already exists
         result = await session.execute(
             select(SafetyFeature).where(SafetyFeature.name == name)
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             print(f"  Safety feature '{name}' already exists, skipping")
             continue
-        
+
         # Create new safety feature
         feature = SafetyFeature(
             name=name,
@@ -124,7 +125,57 @@ async def load_safety_features(session, json_file: str):
         session.add(feature)
         count += 1
         print(f"  + Added safety feature: {name}")
-    
+
+    await session.commit()
+    return count
+
+
+async def load_categories(session, json_file: str):
+    """Load categories from JSON file."""
+    try:
+        with open(json_file, 'r', encoding='utf-8') as f:
+            categories_data = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: File not found: {json_file}")
+        return 0
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in {json_file}: {e}")
+        return 0
+
+    if not isinstance(categories_data, list):
+        print(f"Error: Expected array of categories, got {type(categories_data)}")
+        return 0
+
+    count = 0
+    for cat_data in categories_data:
+        name = cat_data.get('name')
+        slug = cat_data.get('slug')
+
+        if not name or not slug:
+            print(f"Warning: Skipping category with missing name or slug: {cat_data}")
+            continue
+
+        # Check if category already exists by name or slug
+        result = await session.execute(
+            select(Category).where(or_(Category.name == name, Category.slug == slug))
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            print(f"  Category '{name}' (slug: {slug}) already exists, skipping")
+            continue
+
+        # Create new category
+        category = Category(
+            name=name,
+            slug=slug,
+            description=cat_data.get('description'),
+            icon=cat_data.get('icon')
+        )
+        session.add(category)
+        count += 1
+        print(f"  + Added category: {name}")
+
     await session.commit()
     return count
 
@@ -134,29 +185,35 @@ async def main():
     print("=" * 60)
     print("Database Initialization Script")
     print("=" * 60)
-    
+
     # File paths
     amenities_file = Path(__file__).parent.parent / "data/amenities.json"
     safety_features_file = Path(__file__).parent.parent / "data/safety_features.json"
-    
+    categories_file = Path(__file__).parent.parent / "data/categories.json"  # Path to categories file
+
     async with AsyncSessionLocal() as session:
         try:
             # Load amenities
-            print("\n[1/2] Loading amenities from amenities.json...")
+            print("\n[1/3] Loading amenities from amenities.json...")
             amenities_count = await load_amenities(session, str(amenities_file))
-            
+
             # Load safety features
-            print("\n[2/2] Loading safety features from safety_features.json...")
+            print("\n[2/3] Loading safety features from safety_features.json...")
             features_count = await load_safety_features(session, str(safety_features_file))
-            
+
+            # Load categories
+            print("\n[3/3] Loading categories from categories.json...")
+            categories_count = await load_categories(session, str(categories_file))
+
             # Summary
             print("\n" + "=" * 60)
             print("Initialization Complete!")
             print("=" * 60)
             print(f"Amenities added: {amenities_count}")
             print(f"Safety features added: {features_count}")
-            print(f"Total records: {amenities_count + features_count}")
-            
+            print(f"Categories added: {categories_count}")
+            print(f"Total records: {amenities_count + features_count + categories_count}")
+
         except Exception as e:
             print(f"\nError during initialization: {e}")
             await session.rollback()
