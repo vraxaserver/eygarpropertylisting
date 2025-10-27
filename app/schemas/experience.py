@@ -6,8 +6,8 @@ from uuid import UUID
 
 class PropertyResponse(BaseModel):
     id: UUID
-    name: str
-    location: str
+    title: str
+    # location: str
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -37,7 +37,7 @@ class ExperienceResponse(ExperienceBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -45,5 +45,5 @@ class ExperienceWithPropertiesResponse(ExperienceResponse):
     """Experience with attached property information."""
     property_count: int = 0
     properties: List[PropertyResponse] = []
-    
+
     model_config = ConfigDict(from_attributes=True)

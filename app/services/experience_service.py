@@ -9,15 +9,15 @@ from app.models.experience import Experience
 class ExperienceService:
     def __init__(self, db: AsyncSession):
         self.repository = ExperienceRepository(db)
-    
+
     async def create_experience(self, experience_data: ExperienceCreate, host_id: UUID) -> Experience:
         """Create a new experience."""
         return await self.repository.create(experience_data, host_id)
-    
+
     async def get_experience(self, experience_id: UUID) -> Optional[Experience]:
         """Get experience by ID."""
         return await self.repository.get_by_id(experience_id)
-    
+
     async def list_host_experiences(
         self,
         host_id: UUID,
@@ -27,7 +27,7 @@ class ExperienceService:
     ) -> Tuple[List[Experience], int]:
         """List experiences by host."""
         return await self.repository.list_by_host(host_id, skip, limit, active_only)
-    
+
     async def update_experience(
         self,
         experience_id: UUID,
@@ -36,15 +36,15 @@ class ExperienceService:
     ) -> Optional[Experience]:
         """Update experience (host only)."""
         return await self.repository.update(experience_id, update_data, host_id)
-    
+
     async def delete_experience(self, experience_id: UUID, host_id: UUID) -> bool:
         """Delete experience (host only)."""
         return await self.repository.delete(experience_id, host_id)
-    
+
     async def get_property_experiences(self, property_id: UUID) -> List[Experience]:
         """Get all active experiences for a property."""
         return await self.repository.get_experiences_for_property(property_id)
-    
+
     async def list_all_experiences(
         self,
         skip: int,
@@ -79,3 +79,11 @@ class ExperienceService:
             experience_id,
             property_id
         )
+
+    async def get_experience_with_properties(self, experience_id: UUID) -> Experience | None:
+        """
+        Retrieves a single experience by its ID, and eagerly loads its
+        associated properties to prevent DetachedInstanceError.
+        """
+
+        return await self.repository.get_properties_by_experience(experience_id)

@@ -13,7 +13,7 @@ from app.schemas.experience import (
     ExperienceWithPropertiesResponse
 )
 from app.services.experience_service import ExperienceService
-
+from app.schemas.property import PropertyListResponse, PropertyResponse
 
 router = APIRouter()
 
@@ -33,7 +33,7 @@ async def create_experience(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can create experiences"
         )
-    
+
     service = ExperienceService(db)
     experience = await service.create_experience(experience_data, current_user.host_info.id)
     return experience
@@ -53,14 +53,15 @@ async def get_my_experiences(
             page=pagination.page,
             page_size=pagination.page_size
         )
-    
+
     service = ExperienceService(db)
     experiences, total = await service.list_host_experiences(
         current_user.host_info.id,
         skip=pagination.skip,
         limit=pagination.limit
     )
-    
+    print(f"{'*' * 20}")
+    print(experiences)
     return PaginatedResponse.create(
         items=experiences,
         total=total,
@@ -77,13 +78,13 @@ async def get_experience(
     """Get experience by ID."""
     service = ExperienceService(db)
     experience = await service.get_experience(experience_id)
-    
+
     if not experience:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Experience not found"
         )
-    
+
     return experience
 
 
@@ -100,20 +101,20 @@ async def update_experience(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can update experiences"
         )
-    
+
     service = ExperienceService(db)
     experience = await service.update_experience(
         experience_id,
         update_data,
         current_user.host_info.id
     )
-    
+
     if not experience:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Experience not found or you don't have permission"
         )
-    
+
     return experience
 
 
@@ -129,16 +130,16 @@ async def delete_experience(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can delete experiences"
         )
-    
+
     service = ExperienceService(db)
     deleted = await service.delete_experience(experience_id, current_user.host_info.id)
-    
+
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Experience not found or you don't have permission"
         )
-    
+
     return MessageResponse(message="Experience deleted successfully")
 
 
@@ -165,7 +166,7 @@ async def list_experiences(
     Public endpoint - no authentication required.
     """
     service = ExperienceService(db)
-    
+
     if host_id:
         # List experiences by specific host
         experiences, total = await service.list_host_experiences(
@@ -181,7 +182,7 @@ async def list_experiences(
             limit=pagination.limit,
             active_only=active_only
         )
-    
+
     return PaginatedResponse.create(
         items=experiences,
         total=total,
@@ -207,9 +208,9 @@ async def add_properties_to_experience(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can add properties to experiences"
         )
-    
+
     service = ExperienceService(db)
-    
+
     # Verify experience exists and belongs to host
     experience = await service.get_experience(experience_id)
     if not experience:
@@ -217,22 +218,74 @@ async def add_properties_to_experience(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Experience not found"
         )
-    
+
     if experience.host_id != current_user.host_info.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to modify this experience"
         )
-    
+
     # Add properties
     updated_experience = await service.add_properties_to_experience(
         experience_id,
         property_ids,
         current_user.host_info.id
     )
-    
+
     return updated_experience
 
+
+@router.get("/{experience_id}/properties")
+async def get_properties_for_experience(
+    experience_id: UUID,
+    pagination: PaginationParams = Depends(),
+    # Depending on your business logic, you might want to allow any active user
+    # or even the public to see the properties. Here, we restrict it to the owner.
+    current_user: UserInfo = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieve all properties associated with a specific experience.
+    Only the host who owns the experience can view the associated properties.
+    """
+    if not current_user.host_info or not current_user.host_info.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not a host"
+        )
+
+    service = ExperienceService(db)
+
+    # Use the new service method to get the experience and its properties
+    experience, _ = await service.get_experience_with_properties(experience_id)
+
+    if not experience:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Experience not found"
+        )
+
+    # Authorization check: Ensure the current user owns the experience
+    print("experience ==========================")
+    print(experience[0])
+    if experience[0].host_id != current_user.host_info.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to view these properties"
+        )
+
+    # Because we eagerly loaded, this is now safe to return.
+    # FastAPI will use the PropertyResponse schema to serialize each item.
+    properties = experience[0].properties
+    return properties
+    # property_list = [PropertyResponse(property) for property in properties]
+
+    # return PaginatedResponse.create(
+    #     items=properties,
+    #     total=len(properties),
+    #     page=pagination.page,
+    #     page_size=pagination.page_size
+    # )
 
 @router.delete("/{experience_id}/properties/{property_id}", response_model=MessageResponse)
 async def remove_property_from_experience(
@@ -250,9 +303,9 @@ async def remove_property_from_experience(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can remove properties from experiences"
         )
-    
+
     service = ExperienceService(db)
-    
+
     # Verify experience exists and belongs to host
     experience = await service.get_experience(experience_id)
     if not experience:
@@ -260,23 +313,23 @@ async def remove_property_from_experience(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Experience not found"
         )
-    
+
     if experience.host_id != current_user.host_info.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to modify this experience"
         )
-    
+
     # Remove property
     success = await service.remove_property_from_experience(
         experience_id,
         property_id
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Property not found in this experience"
         )
-    
+
     return MessageResponse(message="Property removed from experience successfully")
