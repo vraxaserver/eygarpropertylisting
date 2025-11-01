@@ -54,6 +54,9 @@ docker-compose up -d postgres
 
 4. **Run migrations**:
 ```bash
+alembic revision --autogenerate -m "describe your change"
+alembic revision --autogenerate -m "Add coupons table"
+
 alembic upgrade head
 ```
 

@@ -5,6 +5,7 @@ from app.models.availability import Availability
 from app.models.rule import PropertyRule, RuleType
 from app.models.review import Review
 from app.models.experience import Experience, property_experiences
+from app.models.vendor import VendorService, Coupon
 
 __all__ = [
     "Property",
@@ -23,4 +24,6 @@ __all__ = [
     "Review",
     "Experience",
     "property_experiences",
+    'VendorService',
+    'Coupon'
 ]

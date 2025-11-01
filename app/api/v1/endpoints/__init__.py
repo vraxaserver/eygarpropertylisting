@@ -4,11 +4,15 @@ from app.api.v1.endpoints import reviews
 from app.api.v1.endpoints import amenities
 from app.api.v1.endpoints import my_properties
 from app.api.v1.endpoints import experiences
+from app.api.v1.endpoints import vendors
+from app.api.v1.endpoints import coupons
 
 __all__ = [
     'properties',
-    'reviews', 
+    'reviews',
     'amenities',
     'my_properties',
-    'experiences'
+    'experiences',
+    'vendors',
+    'coupons'
 ]
