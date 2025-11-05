@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:1eAnrKmqA5X879fr2LbO@eygar-rds.cj480emqyx9y.me-central-1.rds.amazonaws.com:5432/dev_eygar_property_listing"
 
     # Auth Service Integration
-    AUTH_SERVICE_URL: str = "http://127.0.0.1:8000/api/v1/auth"
+    AUTH_SERVICE_URL: str = "https://api.eygar.com/auth/api/v1/auth"
     JWT_SECRET_KEY: str = "abcdefgh"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
 
     # Local Storage (Development)
     MEDIA_DIR: str = "media/images"
-    BASE_URL: str = "http://127.0.0.1:8001"
+    BASE_URL: str = "https://api.eygar.com/property/"
 
     # AWS S3 (Production)
     AWS_ACCESS_KEY_ID: Optional[str] = None
