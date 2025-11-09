@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.vendor import VendorService, Coupon
 from app.schemas.vendor import VendorServiceUpdate, CouponCreate, CouponUpdate
+from sqlalchemy.orm import joinedload
 
 class VendorServiceRepository:
     async def get_by_id(self, db: AsyncSession, service_id: UUID) -> Optional[VendorService]:
@@ -52,7 +53,17 @@ class CouponRepository:
         return result.scalars().first()
 
     async def list_all(self, db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Coupon]:
-        result = await db.execute(select(Coupon).offset(skip).limit(limit))
+        query = (
+            select(Coupon)
+            .options(
+                joinedload(Coupon.service)  # <-- This tells SQLAlchemy to JOIN the service table
+            )
+            .offset(skip)
+            .limit(limit)
+        )
+
+        result = await db.execute(query)
+        # result = await db.execute(select(Coupon).offset(skip).limit(limit))
         return result.scalars().all()
 
     async def create(self, db: AsyncSession, coupon_data: CouponCreate) -> Coupon:

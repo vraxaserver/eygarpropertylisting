@@ -93,10 +93,24 @@ class CouponUpdate(BaseModel):
     isActive: Optional[bool] = None
 
 class Coupon(CouponBase):
-    id: UUID  
+    id: UUID
     code: str
     usedCount: int
     createdAt: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CouponResponse(CouponBase):
+    id: UUID
+    code: str
+    usedCount: int
+    createdAt: datetime
+
+    # This is the key change:
+    # Replace 'serviceId: UUID' with 'service: VendorServiceResponse'
+    service: VendorServiceResponse
 
     class Config:
         from_attributes = True

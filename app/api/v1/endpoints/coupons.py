@@ -6,7 +6,7 @@ from typing import List
 from app.database import get_db
 from app.schemas.common import UserInfo
 from app.dependencies import get_current_active_user, PaginationParams
-from app.schemas.vendor import Coupon, CouponCreate, CouponUpdate
+from app.schemas.vendor import Coupon, CouponCreate, CouponUpdate, CouponResponse
 from app.services.vendor_service import CouponService
 
 router = APIRouter()
@@ -28,7 +28,7 @@ async def create_coupon(
     """
     return await service.create_coupon(db, coupon_data)
 
-@router.get("/coupons", response_model=List[Coupon])
+@router.get("/coupons", response_model=List[CouponResponse])
 async def list_coupons(
     db: AsyncSession = Depends(get_db),
     skip: int = 0,

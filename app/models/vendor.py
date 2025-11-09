@@ -5,6 +5,7 @@ from sqlalchemy import Column, String, Float, Integer, DateTime, Boolean, Foreig
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 from app.database import Base
+from sqlalchemy.orm import relationship
 
 class VendorService(Base):
     __tablename__ = "vendor_services"
@@ -28,6 +29,8 @@ class VendorService(Base):
     # Rating and review info
     rating = Column(Float, default=0)
     reviewCount = Column(Integer, default=0)
+
+    coupons = relationship("Coupon", back_populates="service")
 
     # Timestamps
     createdAt = Column(DateTime(timezone=True), server_default=func.now())
@@ -58,6 +61,8 @@ class Coupon(Base):
     eligibility = Column(String, nullable=True)
     terms = Column(String, nullable=True)
     isActive = Column(Boolean, default=True)
+
+    service = relationship("VendorService", back_populates="coupons")
 
     createdAt = Column(DateTime(timezone=True), server_default=func.now())
     updatedAt = Column(DateTime(timezone=True), onupdate=func.now())
