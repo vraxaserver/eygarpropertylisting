@@ -2,6 +2,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 from pydantic import Field
 import json
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -9,19 +13,20 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Property Listing Service"
-    DEBUG: bool = True
+    DEBUG: bool = os.getenv('DEBUG', default=True)
     API_V1_PREFIX: str = "/api/v1"
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = os.getenv('ENV', default="local")
 
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8001
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:1eAnrKmqA5X879fr2LbO@eygar-rds.cj480emqyx9y.me-central-1.rds.amazonaws.com:5432/dev_eygar_property_listing"
+    # DATABASE_URL: str = "postgresql+asyncpg://postgres:1eAnrKmqA5X879fr2LbO@eygar-rds.cj480emqyx9y.me-central-1.rds.amazonaws.com:5432/dev_eygar_property_listing"
+    DATABASE_URL: str = os.getenv('DATABASE_URL', "postgresql+asyncpg://myuser:mypassword@localhost:5432/eygar_property_listing")
 
     # Auth Service Integration
-    AUTH_SERVICE_URL: str = "https://api.eygar.com/auth/api/v1/auth"
+    AUTH_SERVICE_URL: str = os.getenv('AUTH_SERVICE_URL', "http://127.0.0.1:8000/api/v1/auth")
     JWT_SECRET_KEY: str = "abcdefgh"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
@@ -53,15 +58,15 @@ class Settings(BaseSettings):
 
     # Local Storage (Development)
     MEDIA_DIR: str = "media/images"
-    BASE_URL: str = "https://api.eygar.com/property/"
+    BASE_URL: str = os.getenv("BASE_URL", "https://api.eygar.com/property/")
 
     # AWS S3 (Production)
-    AWS_ACCESS_KEY_ID: Optional[str] = None
-    AWS_SECRET_ACCESS_KEY: Optional[str] = None
-    AWS_REGION: str = "us-east-1"
-    S3_BUCKET_NAME: Optional[str] = None
-    S3_FOLDER: str = "property-images"
-    CLOUDFRONT_DOMAIN: Optional[str] = None
+    AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+    AWS_REGION: str = os.getenv("AWS_REGION_NAME", "")
+    S3_BUCKET_NAME: Optional[str] = os.getenv("AWS_S3_BUCKET_NAME", "")
+    S3_FOLDER: str = ""
+    CLOUDFRONT_DOMAIN: Optional[str] = ""
 
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True

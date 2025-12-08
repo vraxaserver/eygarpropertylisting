@@ -1,3 +1,4 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, and_, exists
 from sqlalchemy.orm import selectinload
@@ -198,13 +199,16 @@ class PropertyService:
         host_id: UUID,
         host_name: str,
         host_email: str,
-        host_avatar: Optional[str] = None
+        host_avatar: Optional[str] = None,
+        image_files=[]
     ) -> Property:
         """Create a new property listing with host information."""
         # Generate unique slug
-        base_slug = slugify(property_data.title)
+
+        base_slug = slugify(property_data['title'])
         slug = base_slug
         counter = 1
+        # image_files = property_data.image_files
 
         # Ensure slug is unique
         while await self.repository.get_by_slug(slug):
@@ -217,7 +221,8 @@ class PropertyService:
             host_name,
             host_email,
             host_avatar,
-            slug
+            slug,
+            image_files
         )
 
         # Set published_at if property is active
@@ -248,7 +253,9 @@ class PropertyService:
         self,
         property_id: UUID,
         update_data: PropertyUpdate,
-        host_id: UUID
+        host_id: UUID,
+        uploaded_images: List[UploadFile] = [], # Add this
+        deleted_image_ids: List[str] = []
     ) -> Optional[Property]:
         """Update property (owner only)."""
         property_obj = await self.repository.get_by_id(property_id)
@@ -259,6 +266,12 @@ class PropertyService:
         # Check ownership
         if property_obj.host_id != host_id:
             raise PermissionError("You don't have permission to update this property")
+
+        # if deleted_image_ids:
+        #     await self.delete_images(deleted_image_ids)
+        #
+        # if uploaded_images:
+        #     await self.upload_new_images(property_id, uploaded_images)
 
         updated_property = await self.repository.update(property_id, update_data)
 

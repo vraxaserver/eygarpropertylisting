@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form, Request
+from pydantic import Json
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
+import json
 from datetime import date
 from app.database import get_db
 from app.dependencies import get_current_active_user, PaginationParams, get_optional_user
@@ -17,7 +19,7 @@ from app.models.property import PropertyType, PlaceType, Property
 
 router = APIRouter()
 
-
+import pdb;
 # Add this helper function at the top of properties.py after imports
 def property_to_list_response(prop: Property) -> PropertyListResponse:
     """Convert Property model to PropertyListResponse."""
@@ -52,7 +54,6 @@ def property_to_list_response(prop: Property) -> PropertyListResponse:
     )
 
 
-
 @router.get("/my", response_model=PaginatedResponse[PropertyListResponse])
 async def get_my_properties(
     pagination: PaginationParams = Depends(),
@@ -84,10 +85,22 @@ async def get_my_properties(
         page_size=pagination.page_size
     )
 
+@router.post("/create")
+async def create(
+    property_data: str = Form(...),
+    image_files: List[UploadFile] = File([])
+):
+    # pdb.set_trace()
+    data = json.loads(property_data)
+    print("Uploaded images:", [img.filename for img in image_files])
+
+    return {"property": data}
+
 
 @router.post("/", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
 async def create_property(
-    property_data: PropertyCreate,
+    property_data: str = Form(...),
+    image_files: List[UploadFile] = File(default=[]),
     current_user: UserInfo = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -97,19 +110,20 @@ async def create_property(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can create properties. Please complete host registration."
         )
-
     # Prepare host information
     host_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or "Host"
     host_email = current_user.email
     host_avatar = current_user.avatar_url
+    data = json.loads(property_data)
 
     service = PropertyService(db)
     property_obj = await service.create_property(
-        property_data,
-        current_user.host_info.id,
-        host_name,
-        host_email,
-        host_avatar
+        property_data=data,
+        host_id=current_user.host_info.id,
+        host_name=host_name,
+        host_email=host_email,
+        host_avatar=host_avatar,
+        image_files=image_files  # <--- Passing the files here
     )
     return property_obj
 
@@ -276,25 +290,78 @@ async def get_property(
 @router.put("/{property_id}", response_model=PropertyResponse)
 async def update_property(
     property_id: UUID,
-    update_data: PropertyUpdate,
+    # 1. Define all fields individually as Form parameters
+    property_type: Optional[str] = Form(None),
+    place_type: Optional[str] = Form(None),
+    price_per_night: Optional[float] = Form(None), # float handles integers and decimals
+    currency: Optional[str] = Form(None),
+    bedrooms: Optional[int] = Form(None),
+    beds: Optional[int] = Form(None),
+    bathrooms: Optional[float] = Form(None),
+    max_guests: Optional[int] = Form(None),
+    is_featured: bool = Form(False),
+
+    # 2. Location is received as a JSON string, parsed automatically by Pydantic
+    location: Optional[Json] = Form(None),
+
+    # 3. Handle File Uploads and Deletions
+    uploaded_images: List[UploadFile] = File(default=[]),
+    deleted_image_ids: List[str] = Form(default=[]),
+
+    # 4. Dependencies
     current_user: UserInfo = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Update property (owner only).
-    Requires authentication.
+    Handles Multipart/Form-Data for text fields and image uploads.
     """
-    """Update property (owner only)."""
     if not current_user.host_info or not current_user.host_info.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can update properties"
         )
 
+    # 5. Reconstruct the PropertyUpdate Pydantic model manually
+    # We collect only the provided fields to avoid overwriting data with None
+    update_data_dict = {
+        "property_type": property_type,
+        "place_type": place_type,
+        "price_per_night": price_per_night,
+        "currency": currency,
+        "bedrooms": bedrooms,
+        "beds": beds,
+        "bathrooms": bathrooms,
+        "max_guests": max_guests,
+        "is_featured": is_featured,
+    }
+
+    # Remove None values so we don't accidentally unset fields in the DB
+    update_data_dict = {k: v for k, v in update_data_dict.items() if v is not None}
+
+    # Add location if present (it's already a dict thanks to Json type)
+    if location:
+        update_data_dict["location"] = location
+
+    # Validate data using your existing Pydantic model
+    try:
+        update_data = PropertyUpdate(**update_data_dict)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Validation error: {str(e)}")
+
     service = PropertyService(db)
 
     try:
-        property_obj = await service.update_property(property_id, update_data, current_user.host_info.id)
+        # 6. Pass data AND images to the service
+        # Note: You will need to update your service.update_property method to accept
+        # uploaded_images and deleted_image_ids arguments.
+        property_obj = await service.update_property(
+            property_id=property_id,
+            update_data=update_data,
+            host_id=current_user.host_info.id,
+            uploaded_images=uploaded_images,
+            deleted_image_ids=deleted_image_ids
+        )
     except PermissionError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -313,17 +380,43 @@ async def update_property(
 @router.patch("/{property_id}", response_model=PropertyResponse)
 async def partial_update_property(
     property_id: UUID,
-    update_data: PropertyUpdate,
+    # We must duplicate the signature because PATCH also receives Multipart data now
+    property_type: Optional[str] = Form(None),
+    place_type: Optional[str] = Form(None),
+    price_per_night: Optional[float] = Form(None),
+    currency: Optional[str] = Form(None),
+    bedrooms: Optional[int] = Form(None),
+    beds: Optional[int] = Form(None),
+    bathrooms: Optional[float] = Form(None),
+    max_guests: Optional[int] = Form(None),
+    is_featured: bool = Form(False),
+    location: Optional[Json] = Form(None),
+    uploaded_images: List[UploadFile] = File(default=[]),
+    deleted_image_ids: List[str] = Form(default=[]),
     current_user: UserInfo = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Partially update property (owner only).
-    Requires authentication.
     """
-    print("==========================")
-    print(current_user)
-    return await update_property(property_id, update_data, current_user, db)
+    # Simply delegate to the PUT method as the logic for handling Optional fields is the same
+    return await update_property(
+        property_id=property_id,
+        property_type=property_type,
+        place_type=place_type,
+        price_per_night=price_per_night,
+        currency=currency,
+        bedrooms=bedrooms,
+        beds=beds,
+        bathrooms=bathrooms,
+        max_guests=max_guests,
+        is_featured=is_featured,
+        location=location,
+        uploaded_images=uploaded_images,
+        deleted_image_ids=deleted_image_ids,
+        current_user=current_user,
+        db=db
+    )
 
 
 @router.delete("/{property_id}", response_model=MessageResponse)

@@ -82,12 +82,12 @@ class Property(Base):
     pets_allowed = Column(Boolean, default=False)
 
     # Pricing (in cents to avoid floating point issues)
-    price_per_night = Column(Integer, nullable=False)
+    price_per_night = Column(Float, nullable=False, default=1.0)
     currency = Column(String(3), nullable=False, default="USD")
-    cleaning_fee = Column(Integer, default=0)
-    service_fee = Column(Integer, default=0)
-    weekly_discount = Column(Integer, default=0)
-    monthly_discount = Column(Integer, default=0)
+    cleaning_fee = Column(Float, default=0.0)
+    service_fee = Column(Float, default=0.0)
+    weekly_discount = Column(Float, default=0.0)
+    monthly_discount = Column(Float, default=0.0)
 
     # Location (Foreign Key)
     location_id = Column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=False)

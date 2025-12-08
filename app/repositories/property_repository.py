@@ -3,13 +3,15 @@ from sqlalchemy import select, func, and_, or_, delete
 from sqlalchemy.orm import selectinload, joinedload
 from typing import List, Optional, Tuple
 from uuid import UUID
+import uuid
 from datetime import date
+from fastapi import UploadFile
 from app.models.property import Property, Location
 from app.models.image import PropertyImage
 from app.models.amenity import Amenity, SafetyFeature, property_amenities, property_safety_features
 from app.models.rule import PropertyRule, RuleType
 from app.schemas.property import PropertyCreate, PropertyUpdate
-
+from app.utils.storage import save_image_file
 
 class PropertyRepository:
     def __init__(self, db: AsyncSession):
@@ -21,25 +23,26 @@ class PropertyRepository:
                      host_name: str,
                      host_email: str,
                      host_avatar: Optional[str],
-                     slug: str) -> Property:
-        """Create a new property with all related data."""
+                     slug: str,
+                     image_files: List[UploadFile]) -> Property: # Added image_files
 
-        # Create location
-        location = Location(**property_data.location.model_dump())
+        # 1. Create Location
+        location = Location(**property_data['location'])
         self.db.add(location)
         await self.db.flush()
 
-        # Create property
-        property_dict = property_data.model_dump(
-            exclude={'location', 'amenity_ids', 'safety_feature_ids', 'images',
-                    'house_rules', 'cancellation_policy', 'check_in_policy'}
-        )
-        host = {
-            "id":host_id,
-            "name":host_name,  # NEW
-            "email":host_email,  # NEW
-            "avatar":host_avatar,  # NEW
+        # 2. Create Property Object
+        exclude_keys = {
+            'location',
+            'amenity_ids',
+            'safety_feature_ids',
+            'images',
+            'house_rules',
+            'cancellation_policy',
+            'check_in_policy',
         }
+        property_dict = {k: v for k, v in property_data.items() if k not in exclude_keys}
+
         property_obj = Property(
             **property_dict,
             host_id=host_id,
@@ -50,62 +53,69 @@ class PropertyRepository:
             slug=slug
         )
         self.db.add(property_obj)
-        await self.db.flush()
+        await self.db.flush() # Flush to get property_obj.id
 
-        # Add images
-        for img_data in property_data.images:
-            image = PropertyImage(
-                **img_data.model_dump(),
-                property_id=property_obj.id
-            )
-            self.db.add(image)
+        # 3. Handle Images (Upload + DB Entry)
+        # We assume property_data.images (metadata) and image_files (binary) are same length/order
+        if image_files:
+            # Iterate using zip to pair metadata with actual file
+            # Note: Ensure frontend sends them in exact same order
+            for img_meta, file_obj in zip(property_data['images'], image_files):
+                print("=============img_meta=============")
+                print(img_meta)
+                # Generate unique filename
+                ext = file_obj.filename.split('.')[-1] if '.' in file_obj.filename else "jpg"
+                unique_name = f"{uuid.uuid4()}.{ext}"
 
-        # Add amenities using junction table directly
-        if property_data.amenity_ids:
+                # Upload File
+                uploaded_url = await save_image_file(
+                    file=file_obj,
+                    property_id=str(property_obj.id),
+                    file_name=unique_name
+                )
+
+                # Create DB Record
+                image_record = PropertyImage(
+                    property_id=property_obj.id,
+                    image_url=uploaded_url, # The real URL from S3/Local
+                    display_order=img_meta["display_order"],
+                    is_cover=img_meta["is_cover"],
+                    alt_text=img_meta["alt_text"]
+                )
+                self.db.add(image_record)
+
+        # 4. Amenities & Safety Features
+        if property_data["amenity_ids"]:
             from app.models.amenity import property_amenities
-            for amenity_id in property_data.amenity_ids:
-                stmt = property_amenities.insert().values(
-                    property_id=property_obj.id,
-                    amenity_id=amenity_id
-                )
-                await self.db.execute(stmt)
+            for amenity_id in property_data["amenity_ids"]:
+                await self.db.execute(property_amenities.insert().values(
+                    property_id=property_obj.id, amenity_id=amenity_id
+                ))
 
-        # Add safety features using junction table directly
-        if property_data.safety_feature_ids:
+        if property_data.get("safety_feature_ids"):
             from app.models.amenity import property_safety_features
-            for safety_id in property_data.safety_feature_ids:
-                stmt = property_safety_features.insert().values(
-                    property_id=property_obj.id,
-                    safety_feature_id=safety_id
-                )
-                await self.db.execute(stmt)
+            for safety_id in property_data.get("safety_feature_ids"):
+                await self.db.execute(property_safety_features.insert().values(
+                    property_id=property_obj.id, safety_feature_id=safety_id
+                ))
 
-        # Add rules
-        for rule_text in property_data.house_rules:
-            rule = PropertyRule(
-                property_id=property_obj.id,
-                rule_text=rule_text,
-                rule_type=RuleType.HOUSE_RULES
-            )
-            self.db.add(rule)
+        # 5. Rules & Policies
+        for rule_text in property_data.get("house_rules"):
+            self.db.add(PropertyRule(
+                property_id=property_obj.id, rule_text=rule_text, rule_type=RuleType.HOUSE_RULES
+            ))
 
-        if property_data.cancellation_policy:
-            rule = PropertyRule(
-                property_id=property_obj.id,
-                rule_text=property_data.cancellation_policy,
-                rule_type=RuleType.CANCELLATION_POLICY
-            )
-            self.db.add(rule)
+        if property_data.get("cancellation_policy"):
+            self.db.add(PropertyRule(
+                property_id=property_obj.id, rule_text=property_data.get("cancellation_policy"), rule_type=RuleType.CANCELLATION_POLICY
+            ))
 
-        if property_data.check_in_policy:
-            rule = PropertyRule(
-                property_id=property_obj.id,
-                rule_text=property_data.check_in_policy,
-                rule_type=RuleType.CHECK_IN_POLICY
-            )
-            self.db.add(rule)
+        if property_data.get("check_in_policy"):
+            self.db.add(PropertyRule(
+                property_id=property_obj.id, rule_text=property_data.get("check_in_policy"), rule_type=RuleType.CHECK_IN_POLICY
+            ))
 
-        await self.db.flush()
+        await self.db.commit()
         await self.db.refresh(property_obj)
         return property_obj
 
