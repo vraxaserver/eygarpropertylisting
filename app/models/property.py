@@ -56,6 +56,22 @@ class Category(Base):
         return f"<Category(id={self.id}, name='{self.name}')>"
 
 
+
+class CancellationPolicy(Base):
+    __tablename__ = "cancellation_policies"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String(50), unique=True, nullable=False)  # e.g. "flexible", "moderate", "strict"
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False)
+
+    # Example parameters
+    free_cancel_days_before_checkin = Column(Integer, nullable=False, default=7)
+    partial_refund_days_before_checkin = Column(Integer, nullable=True)  # e.g., 3 days
+    partial_refund_percentage = Column(Integer, nullable=True)          # e.g., 50
+    no_refund_inside_hours_before_checkin = Column(Integer, nullable=True)  # e.g., 24 hours
+
+
 class Property(Base):
     __tablename__ = "properties"
 
@@ -128,6 +144,13 @@ class Property(Base):
     rules = relationship("PropertyRule", back_populates="property", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="property", cascade="all, delete-orphan")
     experiences = relationship("Experience", secondary="property_experiences", back_populates="properties")
+
+    cancellation_policy_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("cancellation_policies.id"),
+        nullable=True
+    )
+    cancellation_policy = relationship("CancellationPolicy")
 
     # Constraints
     __table_args__ = (
