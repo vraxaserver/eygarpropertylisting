@@ -71,6 +71,9 @@ class CancellationPolicy(Base):
     partial_refund_percentage = Column(Integer, nullable=True)          # e.g., 50
     no_refund_inside_hours_before_checkin = Column(Integer, nullable=True)  # e.g., 24 hours
 
+class RevenueShareType(str, enum.Enum):
+    PERCENTAGE = "percentage"
+    FIXED = "fixed"
 
 class Property(Base):
     __tablename__ = "properties"
@@ -104,6 +107,10 @@ class Property(Base):
     service_fee = Column(Float, default=0.0)
     weekly_discount = Column(Float, default=0.0)
     monthly_discount = Column(Float, default=0.0)
+    is_owner = Column(Boolean, default=True)
+    is_agent = Column(Boolean, default=False)
+    revenue_share_type = Column(Enum(RevenueShareType), nullable=True, default=RevenueShareType.PERCENTAGE)
+    revenue_share = Column(Float, nullable=True, default=0.0)
 
     # Location (Foreign Key)
     location_id = Column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=False)
