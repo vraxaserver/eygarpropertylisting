@@ -49,17 +49,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-origins = [
-    "https://dev.eygar.com",
-    "http://localhost:3000",  # optional for local dev
-    "http://127.0.0.1:3000",
-    "http://172.31.10.140:3000",
-]
-
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "https://eygar.com",
+        "https://dev.eygar.com",
+        "https://www.eygar.com",
+        "http://localhost:3000",  # optional for local dev
+        "http://127.0.0.1:3000",
+        "http://172.31.10.140:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
