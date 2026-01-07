@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # Database
     # DATABASE_URL: str = "postgresql+asyncpg://postgres:1eAnrKmqA5X879fr2LbO@eygar-rds.cj480emqyx9y.me-central-1.rds.amazonaws.com:5432/dev_eygar_property_listing"
-    DATABASE_URL: str = os.getenv('DATABASE_URL', "postgresql+asyncpg://myuser:mypassword@localhost:5432/eygar_property_listing")
+    DATABASE_URL: str = os.getenv('DATABASE_URL', f"postgresql+asyncpg://myuser:mypassword@localhost:5432/eygar_property_listing")
 
     # Auth Service Integration
     AUTH_SERVICE_URL: str = os.getenv('AUTH_SERVICE_URL', "http://127.0.0.1:8000/api/v1/auth")
