@@ -140,8 +140,7 @@ class PropertyRepository:
             ))
 
         await self.db.commit()
-        await self.db.refresh(property_obj)
-        return property_obj
+        return await self.get_by_id(property_obj.id)
 
     async def get_by_id(self, property_id: UUID) -> Optional[Property]:
         """Get property by ID with all relations."""

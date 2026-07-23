@@ -88,10 +88,9 @@ async def get_my_properties(
 
 @router.post("/create", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
 async def create_property(
-    property_data: str = Form(...),
-    image_files: List[UploadFile] = File(default=[]),
-    current_user: UserInfo = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserInfo = Depends(get_current_active_user)
 ):
     """Create a new property listing."""
     if not current_user.host_info or not current_user.host_info.id:
@@ -99,11 +98,46 @@ async def create_property(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only hosts can create properties. Please complete host registration."
         )
+
+    content_type = request.headers.get("content-type", "")
+    image_files = []
+    
+    if "application/json" in content_type:
+        try:
+            body_data = await request.json()
+            data = PropertyCreate(**body_data).model_dump()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid JSON payload: {str(e)}"
+            )
+    elif "multipart/form-data" in content_type:
+        try:
+            form = await request.form()
+            property_data = form.get("property_data")
+            if not property_data:
+                raise ValueError("Form field 'property_data' is required")
+            data = PropertyCreate(**json.loads(property_data)).model_dump()
+            
+            # Extract files
+            for field_name, value in form.multi_items():
+                if field_name == "image_files" and isinstance(value, UploadFile):
+                    image_files.append(value)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid form-data payload: {str(e)}"
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported media type. Use application/json or multipart/form-data."
+        )
+
     # Prepare host information
     host_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or "Host"
     host_email = current_user.email or ""
     host_avatar = current_user.avatar_url
-    data = PropertyCreate(**json.loads(property_data)).model_dump()
 
     service = PropertyService(db)
     property_obj = await service.create_property(
@@ -112,9 +146,10 @@ async def create_property(
         host_name=host_name,
         host_email=host_email,
         host_avatar=host_avatar,
-        image_files=image_files  # <--- Passing the files here
+        image_files=image_files
     )
     return property_obj
+
 
 
 @router.get("/", response_model=PaginatedResponse[PropertyListResponse])

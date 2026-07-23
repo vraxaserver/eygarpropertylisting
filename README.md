@@ -92,10 +92,10 @@ All requests to endpoints that require authorization must include the header `Au
 * **Request Body Example (`property_data` JSON)**:
 ```json
 {
-  "title": "Luxury Beachfront Villa with Infinity Pool",
-  "description": "Experience paradise in this stunning 4-bedroom beachfront villa featuring an infinity pool, private beach access, and breathtaking ocean views. Perfect for families or groups seeking the ultimate luxury getaway.",
-  "property_type": "entire_place",
-  "place_type": "entire_home_apt",
+  "title": "Luxury Beachfront Villa with Infinity Pool - The Pearl, Qatar",
+  "description": "Experience unparalleled luxury in this stunning 4-bedroom beachfront villa located in the prestigious Pearl-Qatar development in Doha. This exquisite property features an infinity pool overlooking the Arabian Gulf, private beach access, and breathtaking sea views. Perfect for families or groups seeking the ultimate luxury getaway in Qatar.",
+  "property_type": "apartment",
+  "place_type": "private_room",
   "bedrooms": 4,
   "beds": 5,
   "bathrooms": 3.5,
@@ -112,46 +112,48 @@ All requests to endpoints that require authorization must include the header `Au
   "monthly_discount": 15.0,
   "instant_book": true,
   "location": {
-    "address": "123 Beachfront Drive",
-    "city": "Miami Beach",
-    "state": "Florida",
-    "country": "USA",
-    "postal_code": "33139",
-    "latitude": 25.7907,
-    "longitude": -80.13
+    "address": "123 Porto Arabia Drive, The Pearl-Qatar",
+    "city": "Doha",
+    "state": "Ad Dawhah",
+    "country": "Qatar",
+    "postal_code": null,
+    "latitude": 25.3725,
+    "longitude": 51.554
   },
   "amenity_ids": [
-    "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "6987ee35-d564-48ca-99cd-56fcb00db087",
+    "703b97ec-ad39-4263-81b1-2251bdcd544b"
   ],
   "safety_feature_ids": [
-    "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    "77265249-193c-4911-896b-8bc621e67d0d"
   ],
   "images": [
     {
       "image_url": "https://example.com/images/property1-main.jpg",
       "display_order": 0,
       "is_cover": true,
-      "alt_text": "Main ocean view"
+      "alt_text": "Main sea view of the Arabian Gulf"
     },
     {
       "image_url": "https://example.com/images/property1-pool.jpg",
       "display_order": 1,
       "is_cover": false,
-      "alt_text": "Infinity pool"
+      "alt_text": "Infinity pool overlooking the sea"
     },
     {
       "image_url": "https://example.com/images/property1-bedroom.jpg",
       "display_order": 2,
       "is_cover": false,
-      "alt_text": "Master bedroom"
+      "alt_text": "Master bedroom with Arabian Gulf views"
     }
   ],
   "house_rules": [
     "No smoking inside the property",
-    "No parties or events"
+    "No parties or events",
+    "Respect local culture and traditions"
   ],
   "cancellation_policy": "Free cancellation up to 48 hours before check-in.",
-  "check_in_policy": "Check-in: 3:00 PM - 10:00 PM. Self check-in with keypad."
+  "check_in_policy": "Check-in: 3:00 PM - 10:00 PM. Concierge check-in or self check-in with keypad."
 }
 ```
 * **Response Example (201 Created)**:
@@ -519,6 +521,27 @@ All requests to endpoints that require authorization must include the header `Au
 ]
 ```
 
+#### Create Amenity
+* **Endpoint**: `POST /api/v1/amenities`
+* **Auth Required**: Yes
+* **Request Body Example**:
+```json
+{
+  "name": "Swimming Pool",
+  "category": "basic",
+  "icon": "pool-icon"
+}
+```
+* **Response Example (201 Created)**:
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "name": "Swimming Pool",
+  "category": "basic",
+  "icon": "pool-icon"
+}
+```
+
 #### List All Safety Features
 * **Endpoint**: `GET /api/v1/safety-features`
 * **Auth Required**: No
@@ -531,6 +554,27 @@ All requests to endpoints that require authorization must include the header `Au
     "icon": "smoke-alarm-icon"
   }
 ]
+```
+
+#### Create Safety Feature
+* **Endpoint**: `POST /api/v1/safety-features`
+* **Auth Required**: Yes
+* **Request Body Example**:
+```json
+{
+  "name": "Fire Extinguisher",
+  "description": "Portable fire extinguisher located in the kitchen",
+  "icon": "fire-extinguisher-icon"
+}
+```
+* **Response Example (201 Created)**:
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "name": "Fire Extinguisher",
+  "description": "Portable fire extinguisher located in the kitchen",
+  "icon": "fire-extinguisher-icon"
+}
 ```
 
 ---
