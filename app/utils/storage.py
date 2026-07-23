@@ -33,12 +33,14 @@ async def save_image_file(file: UploadFile, property_id: str, file_name: str) ->
             content = await file.read()
             await out_file.write(content)
 
-        # Return relative path or localhost url
-        return file_path
+        # Return absolute URL using BASE_URL
+        base_url = settings.BASE_URL if settings.BASE_URL.endswith("/") else f"{settings.BASE_URL}/"
+        clean_path = file_path.replace("\\", "/")
+        return f"{base_url}{clean_path}"
 
     # 2. CLOUD ENVIRONMENT (DEV / PROD)
     else:
-        bucket_name = "eygar-dev" if env == "dev" else "eygar-prod"
+        bucket_name = settings.S3_BUCKET_NAME or ("eygar-dev" if env == "dev" else "eygar-prod")
         s3_key = f"properties/{property_id}/images/{file_name}"
 
         try:
@@ -51,7 +53,7 @@ async def save_image_file(file: UploadFile, property_id: str, file_name: str) ->
                 file_obj,
                 bucket_name,
                 s3_key,
-                ExtraArgs={'ContentType': file.content_type, 'ACL': 'public-read'}
+                ExtraArgs={'ContentType': file.content_type}
             )
 
             # Return the S3 URL

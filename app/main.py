@@ -66,7 +66,7 @@ app.add_middleware(
 )
 
 
-if settings.ENVIRONMENT == "development":
+if settings.ENVIRONMENT in ("development", "local"):
     if os.path.exists("media"):
         app.mount("/media", StaticFiles(directory="media"), name="media")
 
@@ -80,6 +80,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "detail": exc.errors(),
             "message": "Validation error"
+        },
+        headers={
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
         }
     )
 
@@ -88,11 +94,19 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def general_exception_handler(request: Request, exc: Exception):
     """Handle general exceptions."""
     logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    import traceback
+    tb = traceback.format_exc()
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "message": "Internal server error",
-            "detail": str(exc) if settings.DEBUG else "An unexpected error occurred"
+            "detail": tb if settings.DEBUG else "An unexpected error occurred"
+        },
+        headers={
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
         }
     )
 

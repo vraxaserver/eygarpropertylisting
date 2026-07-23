@@ -62,7 +62,7 @@ class HostInfo(BaseModel):
 class UserInfo(BaseModel):
     """User information from auth service."""
     id: UUID
-    email: str
+    email: Optional[str] = None
     avatar_url: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None

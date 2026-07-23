@@ -92,4 +92,5 @@ class Settings(BaseSettings):
         return self.ALLOWED_ORIGINS
 
 
+# Reload trigger comment
 settings = Settings()

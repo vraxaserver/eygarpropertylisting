@@ -55,8 +55,6 @@ class Category(Base):
     def __repr__(self):
         return f"<Category(id={self.id}, name='{self.name}')>"
 
-
-
 class CancellationPolicy(Base):
     __tablename__ = "cancellation_policies"
 
@@ -109,7 +107,7 @@ class Property(Base):
     monthly_discount = Column(Float, default=0.0)
     is_owner = Column(Boolean, default=True)
     is_agent = Column(Boolean, default=False)
-    revenue_share_type = Column(Enum(RevenueShareType), nullable=True, default=RevenueShareType.PERCENTAGE)
+    revenue_share_type = Column(Enum(RevenueShareType, values_callable=lambda x: [e.value for e in x]), nullable=True, default=RevenueShareType.PERCENTAGE)
     revenue_share = Column(Float, nullable=True, default=0.0)
 
     # Location (Foreign Key)

@@ -198,7 +198,7 @@ class PropertyService:
         property_data: PropertyCreate,
         host_id: UUID,
         host_name: str,
-        host_email: str,
+        host_email: Optional[str] = None,
         host_avatar: Optional[str] = None,
         image_files=[]
     ) -> Property:

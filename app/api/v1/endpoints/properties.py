@@ -85,19 +85,8 @@ async def get_my_properties(
         page_size=pagination.page_size
     )
 
-@router.post("/create")
-async def create(
-    property_data: str = Form(...),
-    image_files: List[UploadFile] = File([])
-):
-    # pdb.set_trace()
-    data = json.loads(property_data)
-    print("Uploaded images:", [img.filename for img in image_files])
 
-    return {"property": data}
-
-
-@router.post("/", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/create", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
 async def create_property(
     property_data: str = Form(...),
     image_files: List[UploadFile] = File(default=[]),
@@ -112,9 +101,9 @@ async def create_property(
         )
     # Prepare host information
     host_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or "Host"
-    host_email = current_user.email
+    host_email = current_user.email or ""
     host_avatar = current_user.avatar_url
-    data = json.loads(property_data)
+    data = PropertyCreate(**json.loads(property_data)).model_dump()
 
     service = PropertyService(db)
     property_obj = await service.create_property(

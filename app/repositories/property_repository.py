@@ -6,12 +6,35 @@ from uuid import UUID
 import uuid
 from datetime import date
 from fastapi import UploadFile
-from app.models.property import Property, Location
+from app.models.property import Property, Location, PropertyType, PlaceType, VerificationStatus, RevenueShareType
 from app.models.image import PropertyImage
 from app.models.amenity import Amenity, SafetyFeature, property_amenities, property_safety_features
 from app.models.rule import PropertyRule, RuleType
 from app.schemas.property import PropertyCreate, PropertyUpdate
 from app.utils.storage import save_image_file
+
+# Map of field names to their enum classes for automatic conversion
+ENUM_FIELD_MAP = {
+    'property_type': PropertyType,
+    'place_type': PlaceType,
+    'verification_status': VerificationStatus,
+    'revenue_share_type': RevenueShareType,
+}
+
+def _convert_enum_fields(data: dict) -> dict:
+    """Convert string enum values to their proper enum instances.
+    
+    Handles both enum names (e.g., 'HOUSE') and enum values (e.g., 'house').
+    """
+    for field, enum_class in ENUM_FIELD_MAP.items():
+        if field in data and data[field] is not None and not isinstance(data[field], enum_class):
+            raw = data[field]
+            # Try by name first (e.g., 'HOUSE'), then by value (e.g., 'house')
+            try:
+                data[field] = enum_class[raw]
+            except KeyError:
+                data[field] = enum_class(raw)
+    return data
 
 class PropertyRepository:
     def __init__(self, db: AsyncSession):
@@ -21,7 +44,7 @@ class PropertyRepository:
                      property_data: PropertyCreate,
                      host_id: UUID,
                      host_name: str,
-                     host_email: str,
+                     host_email: Optional[str],
                      host_avatar: Optional[str],
                      slug: str,
                      image_files: List[UploadFile]) -> Property: # Added image_files
@@ -42,6 +65,7 @@ class PropertyRepository:
             'check_in_policy',
         }
         property_dict = {k: v for k, v in property_data.items() if k not in exclude_keys}
+        property_dict = _convert_enum_fields(property_dict)
 
         property_obj = Property(
             **property_dict,

@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID
 from app.models.property import PropertyType, PlaceType, VerificationStatus
 from app.schemas.experience import ExperienceResponse
+from app.schemas.amenity import AmenityResponse
 
 class LocationBase(BaseModel):
     address: str = Field(..., min_length=5, max_length=500)
@@ -44,7 +45,7 @@ class HostInfoResponse(BaseModel):
     """Host information included in property responses."""
     id: UUID
     name: str
-    email: str
+    email: Optional[str] = None
     avatar: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -125,7 +126,7 @@ class PropertyResponse(PropertyBase):
     slug: str
     host_id: UUID
     host_name: str  # Direct field
-    host_email: str  # Direct field
+    host_email: Optional[str] = None  # Direct field
     host_avatar: Optional[str]  # Direct field
     location: LocationResponse
     is_active: bool
@@ -134,7 +135,7 @@ class PropertyResponse(PropertyBase):
     average_rating: float
     total_reviews: int
     images: List[PropertyImageResponse]
-    # experiences: List[ExperienceResponse] = []
+    amenities: List[AmenityResponse] = []
     created_at: datetime
     updated_at: datetime
     published_at: Optional[datetime]
@@ -169,7 +170,7 @@ class PropertyListResponse(BaseModel):
     is_featured: bool
     host_id: UUID
     host_name: str  # Direct field
-    host_email: str  # Direct field
+    host_email: Optional[str] = None  # Direct field
     host_avatar: Optional[str]  # Direct field
     location: LocationResponse
     cover_image: Optional[str] = None
