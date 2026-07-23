@@ -107,6 +107,21 @@ class PropertyRepository:
                     alt_text=img_meta["alt_text"]
                 )
                 self.db.add(image_record)
+        else:
+            # If no image files were uploaded in this request, but image urls were supplied (already uploaded)
+            for img_meta in property_data.get('images', []):
+                # Convert img_meta dict keys if it came from property_data parsing or pydantic model dict
+                # Note: property_data here is already model_dump() of PropertyCreate
+                img_url = img_meta.get("image_url")
+                if img_url:
+                    image_record = PropertyImage(
+                        property_id=property_obj.id,
+                        image_url=img_url,
+                        display_order=img_meta.get("display_order", 0),
+                        is_cover=img_meta.get("is_cover", False),
+                        alt_text=img_meta.get("alt_text") or ""
+                    )
+                    self.db.add(image_record)
 
         # 4. Amenities & Safety Features
         if property_data["amenity_ids"]:
@@ -452,7 +467,7 @@ class PropertyRepository:
 
         update_dict = update_data.model_dump(
             exclude_unset=True,
-            exclude={'location', 'amenity_ids', 'safety_feature_ids'}
+            exclude={'location', 'amenity_ids', 'safety_feature_ids', 'images'}
         )
 
         for field, value in update_dict.items():
@@ -467,7 +482,6 @@ class PropertyRepository:
         # Update amenities if provided - use direct junction table manipulation
         if update_data.amenity_ids is not None:
             from app.models.amenity import property_amenities
-            from sqlalchemy import delete
 
             # Delete existing amenities
             delete_stmt = delete(property_amenities).where(
@@ -486,7 +500,6 @@ class PropertyRepository:
         # Update safety features if provided
         if update_data.safety_feature_ids is not None:
             from app.models.amenity import property_safety_features
-            from sqlalchemy import delete
 
             # Delete existing safety features
             delete_stmt = delete(property_safety_features).where(
@@ -501,6 +514,26 @@ class PropertyRepository:
                     safety_feature_id=safety_id
                 )
                 await self.db.execute(insert_stmt)
+
+        # Update images if provided
+        if update_data.images is not None:
+
+            # Delete existing images
+            delete_stmt = delete(PropertyImage).where(PropertyImage.property_id == property_id)
+            await self.db.execute(delete_stmt)
+
+            # Insert updated images
+            for img in update_data.images:
+                img_url = img.image_url
+                if img_url:
+                    image_record = PropertyImage(
+                        property_id=property_id,
+                        image_url=img_url,
+                        display_order=img.display_order,
+                        is_cover=img.is_cover,
+                        alt_text=img.alt_text or ""
+                    )
+                    self.db.add(image_record)
 
         await self.db.flush()
         await self.db.refresh(property_obj)

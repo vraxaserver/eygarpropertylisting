@@ -53,8 +53,8 @@ class Settings(BaseSettings):
     # File Upload
     MAX_UPLOAD_SIZE: int = 5242880  # 5MB
     MAX_FILE_SIZE: int = 10 * 1024 * 1024
-    ALLOWED_IMAGE_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp"]
-    ALLOWED_EXTENSIONS: set = {"jpg", "jpeg", "png", "gif", "webp"}
+    ALLOWED_IMAGE_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp", "image/avif"]
+    ALLOWED_EXTENSIONS: set = {"jpg", "jpeg", "png", "gif", "webp", "avif"}
 
     # Local Storage (Development)
     MEDIA_DIR: str = "media/images"

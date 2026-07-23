@@ -28,22 +28,30 @@ async def upload_image(
     display_order: int = Form(0, description="Display order of the image"),
     is_cover: bool = Form(False, description="Whether this is the cover image"),
     alt_text: str = Form("", description="Alternative text for the image"),
+    property_id: Optional[str] = Form(None, description="Property ID to organize images by property"),
 ):
     """
     Upload an image file
 
-    - **image**: Image file (jpg, jpeg, png, gif, webp)
+    - **image**: Image file (jpg, jpeg, png, gif, webp, avif)
     - **display_order**: Order in which image should be displayed
     - **is_cover**: Boolean indicating if this is the cover image
     - **alt_text**: Alternative text description for the image
+    - **property_id**: Optional property ID; if provided, image is stored under properties/{property_id}/
 
     Returns the uploaded image URL
     """
     try:
+        # Determine subfolder: use property-specific path when property_id is given
+        if property_id:
+            subfolder = f"properties/{property_id}"
+        else:
+            subfolder = "properties"
+
         # Upload image
         image_url = await storage_service.upload_image(
             file=image,
-            subfolder="properties"  # You can make this dynamic
+            subfolder=subfolder
         )
 
         return ImageUploadResponse(
@@ -61,6 +69,7 @@ async def upload_image(
             status_code=500,
             detail=f"Failed to upload image: {str(e)}"
         )
+
 
 
 @router.post("/upload-multiple")
@@ -107,7 +116,7 @@ async def delete_image(request: ImageDeleteRequest):
     Delete an image from storage
     """
     try:
-        if settings.ENVIRONMENT == "production":
+        if storage_service.use_s3:
             # Extract S3 key from URL
             s3_key = request.image_url.split('.com/')[-1]
             success = storage_service.delete_from_s3(s3_key)
@@ -134,5 +143,5 @@ async def health_check():
     return {
         "status": "healthy",
         "environment": settings.ENVIRONMENT,
-        "storage": "s3" if settings.ENVIRONMENT == "production" else "local"
+        "storage": "s3" if storage_service.use_s3 else "local"
     }

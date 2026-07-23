@@ -314,6 +314,7 @@ async def get_property(
 @router.put("/{property_id}", response_model=PropertyResponse)
 async def update_property(
     property_id: UUID,
+    request: Request,
     # 1. Define all fields individually as Form parameters
     property_type: Optional[str] = Form(None),
     place_type: Optional[str] = Form(None),
@@ -338,7 +339,7 @@ async def update_property(
 ):
     """
     Update property (owner only).
-    Handles Multipart/Form-Data for text fields and image uploads.
+    Handles Multipart/Form-Data for text fields and image uploads, or Application/Json.
     """
     if not current_user.host_info or not current_user.host_info.id:
         raise HTTPException(
@@ -346,32 +347,44 @@ async def update_property(
             detail="Only hosts can update properties"
         )
 
-    # 5. Reconstruct the PropertyUpdate Pydantic model manually
-    # We collect only the provided fields to avoid overwriting data with None
-    update_data_dict = {
-        "property_type": property_type,
-        "place_type": place_type,
-        "price_per_night": price_per_night,
-        "currency": currency,
-        "bedrooms": bedrooms,
-        "beds": beds,
-        "bathrooms": bathrooms,
-        "max_guests": max_guests,
-        "is_featured": is_featured,
-    }
+    content_type = request.headers.get("content-type", "")
 
-    # Remove None values so we don't accidentally unset fields in the DB
-    update_data_dict = {k: v for k, v in update_data_dict.items() if v is not None}
+    if "application/json" in content_type:
+        try:
+            body_data = await request.json()
+            update_data = PropertyUpdate(**body_data)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid JSON payload: {str(e)}"
+            )
+    else:
+        # 5. Reconstruct the PropertyUpdate Pydantic model manually
+        # We collect only the provided fields to avoid overwriting data with None
+        update_data_dict = {
+            "property_type": property_type,
+            "place_type": place_type,
+            "price_per_night": price_per_night,
+            "currency": currency,
+            "bedrooms": bedrooms,
+            "beds": beds,
+            "bathrooms": bathrooms,
+            "max_guests": max_guests,
+            "is_featured": is_featured,
+        }
 
-    # Add location if present (it's already a dict thanks to Json type)
-    if location:
-        update_data_dict["location"] = location
+        # Remove None values so we don't accidentally unset fields in the DB
+        update_dict = {k: v for k, v in update_data_dict.items() if v is not None}
 
-    # Validate data using your existing Pydantic model
-    try:
-        update_data = PropertyUpdate(**update_data_dict)
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Validation error: {str(e)}")
+        # Add location if present (it's already a dict thanks to Json type)
+        if location:
+            update_dict["location"] = location
+
+        # Validate data using your existing Pydantic model
+        try:
+            update_data = PropertyUpdate(**update_dict)
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"Validation error: {str(e)}")
 
     service = PropertyService(db)
 
@@ -404,6 +417,7 @@ async def update_property(
 @router.patch("/{property_id}", response_model=PropertyResponse)
 async def partial_update_property(
     property_id: UUID,
+    request: Request,
     # We must duplicate the signature because PATCH also receives Multipart data now
     property_type: Optional[str] = Form(None),
     place_type: Optional[str] = Form(None),
@@ -426,6 +440,7 @@ async def partial_update_property(
     # Simply delegate to the PUT method as the logic for handling Optional fields is the same
     return await update_property(
         property_id=property_id,
+        request=request,
         property_type=property_type,
         place_type=place_type,
         price_per_night=price_per_night,

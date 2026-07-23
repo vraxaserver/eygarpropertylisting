@@ -77,7 +77,7 @@ class PropertyCreate(PropertyBase):
     location: LocationBase
     amenity_ids: List[UUID] = Field(default_factory=list)
     safety_feature_ids: List[UUID] = Field(default_factory=list)
-    images: List[PropertyImageBase] = Field(..., min_length=3)
+    images: List[PropertyImageBase] = Field(default_factory=list)
     house_rules: List[str] = Field(default_factory=list)
     cancellation_policy: Optional[str] = None
     check_in_policy: Optional[str] = None
@@ -85,8 +85,9 @@ class PropertyCreate(PropertyBase):
     @field_validator('images')
     @classmethod
     def validate_images(cls, v):
-        if len(v) < 3:
-            raise ValueError('Property must have at least 3 images')
+        # Images may be empty when creating property (uploaded separately after creation)
+        if not v:
+            return v
         cover_images = [img for img in v if img.is_cover]
         if len(cover_images) == 0:
             v[0].is_cover = True
@@ -119,6 +120,7 @@ class PropertyUpdate(BaseModel):
     location: Optional[LocationBase] = None
     amenity_ids: Optional[List[UUID]] = None
     safety_feature_ids: Optional[List[UUID]] = None
+    images: Optional[List[PropertyImageBase]] = None
 
 
 class PropertyResponse(PropertyBase):

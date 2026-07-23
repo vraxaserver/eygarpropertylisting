@@ -15,8 +15,16 @@ class StorageService:
     def __init__(self):
         self.environment = settings.ENVIRONMENT
 
-        # Initialize S3 client for production
-        if self.environment == "production":
+        # Use S3 whenever AWS credentials and bucket are configured,
+        # regardless of the ENVIRONMENT name (e.g. "DEV", "staging", "production")
+        self.use_s3 = bool(
+            settings.AWS_ACCESS_KEY_ID
+            and settings.AWS_SECRET_ACCESS_KEY
+            and settings.S3_BUCKET_NAME
+        )
+
+        # Initialize S3 client if credentials are present
+        if self.use_s3:
             try:
                 self.s3_client = boto3.client(
                     's3',
@@ -90,7 +98,6 @@ class StorageService:
                 Key=s3_key,
                 Body=file_content,
                 ContentType=file.content_type,
-                ACL='public-read',  # Make file publicly accessible
                 CacheControl='max-age=31536000',  # Cache for 1 year
             )
 
@@ -151,7 +158,8 @@ class StorageService:
                 filename
             ).replace('\\', '/')
 
-            image_url = f"{settings.BASE_URL}/media/{relative_path}"
+            base_url = settings.BASE_URL.rstrip('/')
+            image_url = f"{base_url}/media/{relative_path}"
 
             return image_url
 
@@ -167,13 +175,14 @@ class StorageService:
         subfolder: Optional[str] = None
     ) -> str:
         """
-        Upload image - automatically routes to S3 (production) or local (development)
+        Upload image - routes to S3 when AWS credentials are configured,
+        otherwise falls back to local storage (development only).
         """
         # Validate image
         self._validate_image(file)
 
-        # Upload based on environment
-        if self.environment == "production":
+        # Upload based on whether S3 credentials are available
+        if self.use_s3:
             return await self.upload_to_s3(file, subfolder)
         else:
             return await self.upload_to_local(file, subfolder)
