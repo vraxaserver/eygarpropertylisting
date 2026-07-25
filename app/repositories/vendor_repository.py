@@ -22,7 +22,7 @@ class VendorServiceRepository:
 
     async def create(self, db: AsyncSession, db_obj: VendorService) -> VendorService:
         db.add(db_obj)
-        await db.flush()
+        await db.commit()
         await db.refresh(db_obj)
         return db_obj
 
@@ -33,13 +33,13 @@ class VendorServiceRepository:
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         db.add(db_obj)
-        await db.flush()
+        await db.commit()
         await db.refresh(db_obj)
         return db_obj
 
     async def delete(self, db: AsyncSession, db_obj: VendorService) -> None:
         await db.delete(db_obj)
-        await db.flush()
+        await db.commit()
 
 
 class CouponRepository:
