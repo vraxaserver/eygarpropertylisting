@@ -63,8 +63,19 @@ class CouponRepository:
         )
 
         result = await db.execute(query)
-        # result = await db.execute(select(Coupon).offset(skip).limit(limit))
-        return result.scalars().all()
+        return result.scalars().unique().all()
+
+    async def list_by_vendor(self, db: AsyncSession, vendor_id) -> List[Coupon]:
+        """Return coupons whose parent service belongs to this vendor."""
+        query = (
+            select(Coupon)
+            .join(Coupon.service)
+            .where(VendorService.vendorId == vendor_id)
+            .options(joinedload(Coupon.service))
+        )
+        result = await db.execute(query)
+        return result.scalars().unique().all()
+
 
     async def create(self, db: AsyncSession, coupon_data: CouponCreate) -> Coupon:
         db_coupon = Coupon(**coupon_data.dict())

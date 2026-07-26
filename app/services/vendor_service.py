@@ -80,8 +80,8 @@ class CouponService:
 
         return await self.repo.create(db, coupon_data)
 
-    async def get_coupon(self, coupon_id: str):
-        coupon = await self.repo.get_by_id(coupon_id)
+    async def get_coupon(self, db: AsyncSession, coupon_id: str):
+        coupon = await self.repo.get_by_id(db, coupon_id)
         if not coupon:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -92,11 +92,14 @@ class CouponService:
     async def list_coupons(self, db: AsyncSession, skip: int, limit: int):
         return await self.repo.list_all(db, skip, limit)
 
-    async def update_coupon(self, coupon_id: str, coupon_data: CouponUpdate):
-        coupon_to_update = await self.get_coupon(coupon_id) # Reuse getter to handle not found case
-        return await self.repo.update(coupon_to_update, coupon_data)
+    async def list_my_coupons(self, db: AsyncSession, vendor_id):
+        return await self.repo.list_by_vendor(db, vendor_id)
 
-    async def delete_coupon(self, coupon_id: str):
-        coupon_to_delete = await self.get_coupon(coupon_id) # Reuse getter to handle not found case
-        await self.repo.delete(coupon_to_delete)
-        return coupon_to_delete # Or return None as per preference
+    async def update_coupon(self, db: AsyncSession, coupon_id: str, coupon_data: CouponUpdate):
+        coupon_to_update = await self.get_coupon(db, coupon_id)
+        return await self.repo.update(db, coupon_to_update, coupon_data)
+
+    async def delete_coupon(self, db: AsyncSession, coupon_id: str):
+        coupon_to_delete = await self.get_coupon(db, coupon_id)
+        await self.repo.delete(db, coupon_to_delete)
+

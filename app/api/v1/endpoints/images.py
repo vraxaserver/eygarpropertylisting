@@ -29,6 +29,7 @@ async def upload_image(
     is_cover: bool = Form(False, description="Whether this is the cover image"),
     alt_text: str = Form("", description="Alternative text for the image"),
     property_id: Optional[str] = Form(None, description="Property ID to organize images by property"),
+    subfolder: Optional[str] = Form(None, description="Explicit S3 subfolder path (takes priority over property_id)"),
 ):
     """
     Upload an image file
@@ -38,20 +39,24 @@ async def upload_image(
     - **is_cover**: Boolean indicating if this is the cover image
     - **alt_text**: Alternative text description for the image
     - **property_id**: Optional property ID; if provided, image is stored under properties/{property_id}/
+    - **subfolder**: Optional explicit S3 subfolder path (e.g. vendors/{vendor_id}/services/{service_id}).
+                     When set this takes priority over property_id.
 
     Returns the uploaded image URL
     """
     try:
-        # Determine subfolder: use property-specific path when property_id is given
-        if property_id:
-            subfolder = f"properties/{property_id}"
+        # Resolve subfolder: explicit path wins, then property_id, then default
+        if subfolder:
+            resolved_subfolder = subfolder.strip("/")
+        elif property_id:
+            resolved_subfolder = f"properties/{property_id}"
         else:
-            subfolder = "properties"
+            resolved_subfolder = "properties"
 
         # Upload image
         image_url = await storage_service.upload_image(
             file=image,
-            subfolder=subfolder
+            subfolder=resolved_subfolder
         )
 
         return ImageUploadResponse(
