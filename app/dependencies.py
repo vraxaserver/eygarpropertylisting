@@ -22,9 +22,11 @@ async def get_current_user(
 
     # Verify token with Django auth service
     try:
+        auth_url = settings.AUTH_SERVICE_URL.rstrip("/")
+        endpoint = f"{auth_url}/profile/" if auth_url.endswith("/auth") else f"{auth_url}/auth/profile/"
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
-                f"{settings.AUTH_SERVICE_URL}/profile/",
+                endpoint,
                 headers={"Authorization": f"Bearer {token}"}
             )
 
