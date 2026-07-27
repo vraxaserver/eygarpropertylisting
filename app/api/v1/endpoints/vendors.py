@@ -18,6 +18,7 @@ def get_vendor_service() -> VendorServiceService:
     return VendorServiceService()
 
 @router.get("/services", response_model=List[VendorServiceResponse])
+@router.get("/services/", response_model=List[VendorServiceResponse])
 async def list_services(
     pagination: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_db),
@@ -27,6 +28,7 @@ async def list_services(
     return await service.get_all_services(db, skip=pagination.skip, limit=pagination.limit)
 
 @router.get("/services/my", response_model=List[VendorServiceResponse])
+@router.get("/services/my/", response_model=List[VendorServiceResponse])
 async def list_my_services(
     db: AsyncSession = Depends(get_db),
     current_user: UserInfo = Depends(get_current_active_user),
@@ -54,6 +56,7 @@ async def get_service(
     return await service.get_service_by_id(db, service_id=service_id)
 
 @router.post("/services", response_model=VendorServiceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/services/", response_model=VendorServiceResponse, status_code=status.HTTP_201_CREATED)
 async def add_service(
     service_create: VendorServiceCreate,
     db: AsyncSession = Depends(get_db),
