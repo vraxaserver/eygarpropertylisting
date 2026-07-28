@@ -58,6 +58,7 @@ class PropertyRepository:
         exclude_keys = {
             'location',
             'amenity_ids',
+            'experience_ids',
             'safety_feature_ids',
             'images',
             'house_rules',
@@ -123,12 +124,21 @@ class PropertyRepository:
                     )
                     self.db.add(image_record)
 
-        # 4. Amenities & Safety Features
-        if property_data["amenity_ids"]:
+        # 4. Amenities, Experiences & Safety Features
+        if property_data.get("amenity_ids"):
             from app.models.amenity import property_amenities
             for amenity_id in property_data["amenity_ids"]:
                 await self.db.execute(property_amenities.insert().values(
                     property_id=property_obj.id, amenity_id=amenity_id
+                ))
+
+        if property_data.get("experience_ids"):
+            from app.models.experience import property_experiences
+            from uuid import UUID as PyUUID
+            for exp_id in property_data["experience_ids"]:
+                clean_exp_id = PyUUID(str(exp_id)) if not isinstance(exp_id, PyUUID) else exp_id
+                await self.db.execute(property_experiences.insert().values(
+                    property_id=property_obj.id, experience_id=clean_exp_id
                 ))
 
         if property_data.get("safety_feature_ids"):
@@ -182,7 +192,8 @@ class PropertyRepository:
                 selectinload(Property.images),
                 selectinload(Property.amenities),
                 selectinload(Property.safety_features),
-                selectinload(Property.rules)
+                selectinload(Property.rules),
+                selectinload(Property.experiences)
             )
             .where(Property.slug == slug)
         )
@@ -467,7 +478,7 @@ class PropertyRepository:
 
         update_dict = update_data.model_dump(
             exclude_unset=True,
-            exclude={'location', 'amenity_ids', 'safety_feature_ids', 'images'}
+            exclude={'location', 'amenity_ids', 'experience_ids', 'safety_feature_ids', 'images'}
         )
 
         for field, value in update_dict.items():
@@ -494,6 +505,24 @@ class PropertyRepository:
                 insert_stmt = property_amenities.insert().values(
                     property_id=property_id,
                     amenity_id=amenity_id
+                )
+                await self.db.execute(insert_stmt)
+
+        # Update experiences if provided
+        if update_data.experience_ids is not None:
+            from app.models.experience import property_experiences
+            from uuid import UUID as PyUUID
+
+            delete_stmt = delete(property_experiences).where(
+                property_experiences.c.property_id == property_id
+            )
+            await self.db.execute(delete_stmt)
+
+            for exp_id in update_data.experience_ids:
+                clean_exp_id = PyUUID(str(exp_id)) if not isinstance(exp_id, PyUUID) else exp_id
+                insert_stmt = property_experiences.insert().values(
+                    property_id=property_id,
+                    experience_id=clean_exp_id
                 )
                 await self.db.execute(insert_stmt)
 
@@ -535,9 +564,8 @@ class PropertyRepository:
                     )
                     self.db.add(image_record)
 
-        await self.db.flush()
-        await self.db.refresh(property_obj)
-        return property_obj
+        await self.db.commit()
+        return await self.get_by_id(property_id)
 
     async def delete(self, property_id: UUID) -> bool:
         """Delete property."""

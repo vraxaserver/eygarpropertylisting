@@ -76,6 +76,7 @@ class PropertyBase(BaseModel):
 class PropertyCreate(PropertyBase):
     location: LocationBase
     amenity_ids: List[UUID] = Field(default_factory=list)
+    experience_ids: List[UUID] = Field(default_factory=list)
     safety_feature_ids: List[UUID] = Field(default_factory=list)
     images: List[PropertyImageBase] = Field(default_factory=list)
     house_rules: List[str] = Field(default_factory=list)
@@ -119,6 +120,7 @@ class PropertyUpdate(BaseModel):
     is_active: Optional[bool] = None
     location: Optional[LocationBase] = None
     amenity_ids: Optional[List[UUID]] = None
+    experience_ids: Optional[List[UUID]] = None
     safety_feature_ids: Optional[List[UUID]] = None
     images: Optional[List[PropertyImageBase]] = None
 
@@ -138,6 +140,7 @@ class PropertyResponse(PropertyBase):
     total_reviews: int
     images: List[PropertyImageResponse]
     amenities: List[AmenityResponse] = []
+    experiences: List[ExperienceResponse] = []
     created_at: datetime
     updated_at: datetime
     published_at: Optional[datetime]
