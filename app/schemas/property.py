@@ -98,8 +98,8 @@ class PropertyCreate(PropertyBase):
 
 
 class PropertyUpdate(BaseModel):
-    title: Optional[str] = Field(None, min_length=10, max_length=200)
-    description: Optional[str] = Field(None, min_length=50)
+    title: Optional[str] = Field(None, min_length=10, max_length=100)
+    description: Optional[str] = Field(None, min_length=50, max_length=500)
     property_type: Optional[PropertyType] = None
     place_type: Optional[PlaceType] = None
     bedrooms: Optional[int] = Field(None, ge=0)
